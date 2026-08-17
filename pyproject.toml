@@ -3,9 +3,19 @@ name = "starspot-sbi"
 version = "0.1.0"
 requires-python = ">=3.11"
 
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.11",
+    "sympy>=1.12",
+    "tqdm>=4.65",
+    "torch>=2.0",
+    "sbi>=0.26,<0.27",
+]
+
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["starspot_sbi"]
+
