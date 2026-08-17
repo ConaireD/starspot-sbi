@@ -13,12 +13,12 @@ as in the fast end-to-end test.
 
 import csv
 from functools import lru_cache
+from pathlib import Path
 
 import numpy as np
 import pytest
 import torch
 
-from conftest import HOLDOUT_DIR, WEIGHTS_DIR
 from starspot_sbi.indexing import coeffs_to_real
 from starspot_sbi.metrics import ssim_aa_vis
 from starspot_sbi.models import (beta_norm_from_deg, clf_context, clf_predict,
@@ -27,6 +27,14 @@ from starspot_sbi.models import (beta_norm_from_deg, clf_context, clf_predict,
 from starspot_sbi.render import render, render_normed
 
 pytestmark = pytest.mark.slow
+
+# Defined here rather than imported from conftest: the module-level skipif
+# guards need them at collection time, and importing conftest breaks under
+# --import-mode=importlib.
+_REPO = Path(__file__).resolve().parent.parent
+WEIGHTS_DIR = _REPO / 'weights'
+HOLDOUT_DIR = (_REPO.parent / 'Sydney' / 'data' / 'fast'
+               / 'L30_N216_grouped' / 'explicit_holdout')
 
 SUFFIX = '_temp'
 LATENT_DIM = 96
@@ -66,6 +74,14 @@ def _holdout(n=30):
     """
     The first n holdout surfaces by surface index: rendered truth, stored
     signal at the slot nearest 60 degrees, and that inclination.
+
+    Caveat: metadata.csv holds 170,000 data rows where the manifest reports
+    100,000 surfaces at 20 inclinations, so it is neither one row per
+    surface nor one per surface-inclination pair (measured: 100,000 unique
+    surface_idx values, so some surfaces repeat). Keying on surface_idx is
+    correct for whatever subset the file holds, but the row count is
+    unexplained and anything inferred about holdout coverage from this
+    function is provisional.
     """
     rows = {}
     with open(HOLDOUT_DIR / 'metadata.csv') as f:
@@ -84,7 +100,18 @@ def _holdout(n=30):
 
 
 def _reconstruct(family, order, idx, sig, beta_deg, n_draws=N_DRAWS):
-    """Context -> flow -> posterior-mean latent -> decoder -> render."""
+    """
+    Context -> flow -> decode every draw -> posterior-mean coefficients ->
+    render.
+
+    The decoder is nonlinear, so decoding the mean latent is not the
+    posterior mean surface; every draw is decoded and the average taken in
+    coefficient space. render_normed is affine in the coefficients
+    (raw = vec * std + mu, then a linear render), and affine maps commute
+    with the mean, so averaging coefficients before one render equals
+    averaging the n_draws rendered images (verified to 3.5e-9, float32
+    accumulation) at a fraction of the cost.
+    """
     post, meta = _flow(family)
     vae, _, stats = _vae()
     x = torch.tensor(sig, dtype=torch.float32).unsqueeze(0)[:, order, :]
@@ -96,7 +123,7 @@ def _reconstruct(family, order, idx, sig, beta_deg, n_draws=N_DRAWS):
     torch.manual_seed(SEED + idx)
     draws = post.sample((n_draws,), x=ctx[0], show_progress_bars=False)
     with torch.no_grad():
-        vec = vae.decoder(draws.mean(0, keepdim=True)).squeeze(0).numpy()
+        vec = vae.decoder(draws).mean(0).numpy()
     return render_normed(vec, stats['mu_data'], stats['std_data'],
                          stats['dc_value'], include_dc=stats['include_dc'])
 
@@ -113,11 +140,11 @@ def _scores(family, order, surfaces, n_draws=N_DRAWS):
 @needs_holdout
 def test_flow_reconstruction_distribution_30_surfaces():
     """
-    Full inference on 30 held-out surfaces with the phot_axay flow. The
-    paper reports a median ssim_aa_vis of about 0.97 over the holdout;
-    measured here 0.940 median, 0.853 minimum, over the first 12 at 96
-    draws. The bound of 0.85 on the median is loose so that only a genuine
-    regression (gains, permutation, standardisation) trips it.
+    Full inference on 30 held-out surfaces with the phot_axay flow at 128
+    draws. The paper reports a median ssim_aa_vis of about 0.97 over the
+    holdout; measured here (30 surfaces, 128 draws): median 0.9371,
+    minimum 0.8609. The bound of 0.85 on the median is loose so that only a
+    genuine regression (gains, permutation, standardisation) trips it.
     """
     scores = _scores('phot_axay', STORED['phot_axay'], _holdout(30),
                      n_draws=128)
@@ -133,9 +160,10 @@ def test_flow_reconstruction_distribution_30_surfaces():
 @pytest.mark.parametrize('family', ['phot', 'phot_ax', 'phot_ay'])
 def test_all_families_reconstruct(family):
     """
-    The remaining three flow families over 12 held-out surfaces each.
-    Measured medians at 96 draws: phot 0.924, phot_ax 0.935, phot_ay 0.937.
-    The bound of 0.80 per family is loose for the same reason as above.
+    The remaining three flow families over 12 held-out surfaces each at 96
+    draws. Measured medians (12 surfaces, 96 draws): phot 0.9217,
+    phot_ax 0.9362, phot_ay 0.9450. The bound of 0.80 per family is loose
+    for the same reason as above.
     """
     scores = _scores(family, STORED[family], _holdout(30)[:12])
     print(f"{family}: median {np.median(scores):.4f}, "
@@ -147,9 +175,10 @@ def test_all_families_reconstruct(family):
 @needs_holdout
 def test_astrometric_swaps_degrade_the_reconstruction():
     """
-    Both astrometric swaps over 12 surfaces: phot_ax fed astro_y instead of
-    astro_x, phot_ay fed astro_x, and phot_axay with the pair exchanged.
-    Measured median penalties 0.060, 0.086 and 0.224; bounds 0.015, 0.02
+    Both astrometric swaps over 12 surfaces at 96 draws: phot_ax fed
+    astro_y instead of astro_x, phot_ay fed astro_x, and phot_axay with the
+    pair exchanged. Measured median penalties (12 surfaces, 96 draws):
+    phot_ax 0.1007, phot_ay 0.1291, phot_axay 0.2562; bounds 0.015, 0.02
     and 0.08. Without this the suite cannot distinguish a correct channel
     order from a wrong one on more than the single fixture surface.
     """
@@ -169,9 +198,9 @@ def test_astrometric_swaps_degrade_the_reconstruction():
 def test_vae_ceiling_distribution_30_surfaces():
     """
     Encode each truth, decode the encoder mean, score: the ceiling any flow
-    can reach. Measured median 0.986, minimum 0.969; bound 0.95 on the
-    median. A collapse here with the flow tests intact points at the
-    standardisation statistics rather than the flows.
+    can reach. Measured (30 surfaces): median 0.9827, minimum 0.9485; bound
+    0.95 on the median. A collapse here with the flow tests intact points at
+    the standardisation statistics rather than the flows.
     """
     vae, _, stats = _vae()
     scores = []
@@ -196,9 +225,9 @@ def test_vae_ceiling_distribution_30_surfaces():
 def test_classifier_beta_recovery_30_surfaces(family):
     """
     Each classifier over 30 held-out surfaces, batched. Measured median
-    absolute errors on the first 12: phot 3, phot_ax 1, phot_ay 1,
-    phot_axay 0 degrees (single-surface outliers reach ~38 for phot_ax, so
-    the assertion is on the median). Bound 10 degrees.
+    absolute errors (30 surfaces): phot 3, phot_ax 2, phot_ay 1, phot_axay
+    1 degrees, with single-surface outliers reaching 56 (phot) and 49
+    (phot_ay), so the assertion is on the median. Bound 10 degrees.
     """
     clf, meta = load_classifier(WEIGHTS_DIR / f'clf_{family}{SUFFIX}.pt',
                                 T=T_SIGNAL)

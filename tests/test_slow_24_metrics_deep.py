@@ -8,7 +8,6 @@ MAE <= RMSE inequality.
 import numpy as np
 import pytest
 
-from conftest import sample_prior_surfaces
 from starspot_sbi.indexing import coeffs_to_real
 from starspot_sbi.metrics import (crps, mae, pr_auc, rmse, ssim_aa_full,
                                   ssim_aa_vis, ssim_map, weights, wmean)
@@ -19,20 +18,20 @@ pytestmark = pytest.mark.slow
 L = 30
 
 
-def _rendered(rng, n):
-    return [render(coeffs_to_real(s)) for s in sample_prior_surfaces(rng, n, L)]
+def _rendered(prior_surfaces, rng, n):
+    return [render(coeffs_to_real(s)) for s in prior_surfaces(rng, n, L)]
 
 
-def test_ssim_properties_200_random_pairs():
+def test_ssim_identity_symmetry_boundedness(prior_surfaces):
     """
-    Identity, symmetry and boundedness of SSIM over 200 pairs of rendered
-    prior surfaces at (120, 240). Identity and symmetry are exact by
-    construction (identical intermediate arrays), so those tolerances are
-    zero and roundoff respectively; boundedness allows 1e-12 of roundoff
-    above 1.
+    Identity, symmetry and boundedness of SSIM at (120, 240), over 40
+    rendered prior surfaces each paired with its next five neighbours in
+    draw order (185 pairs). Identity and symmetry are exact by construction
+    (identical intermediate arrays), so those tolerances are zero and
+    roundoff respectively; boundedness allows 1e-12 of roundoff above 1.
     """
     rng = np.random.default_rng(20260817)
-    imgs = _rendered(rng, 40)
+    imgs = _rendered(prior_surfaces, rng, 40)
 
     worst_sym, worst_id, lo, hi = 0.0, 0.0, np.inf, -np.inf
     n_pairs = 0
@@ -54,14 +53,14 @@ def test_ssim_properties_200_random_pairs():
     assert -1.0 - 1e-12 <= lo and hi <= 1.0 + 1e-12
 
 
-def test_ssim_degrades_with_noise_averaged_50_surfaces():
+def test_ssim_degrades_with_noise_averaged_50_surfaces(prior_surfaces):
     """
     Mean SSIM over 50 surfaces falls strictly as pixel noise grows through
     three well-separated levels. A per-surface version of the fast suite's
     single-draw check; averaging removes its sampling luck.
     """
     rng = np.random.default_rng(3)
-    imgs = _rendered(rng, 50)
+    imgs = _rendered(prior_surfaces, rng, 50)
     levels = (0.02, 0.1, 0.5)
     means = []
     for sigma in levels:
@@ -121,37 +120,46 @@ def test_crps_sorted_form_with_tied_samples(n):
     assert abs(a - b) < 1e-12 * max(1.0, abs(b))
 
 
-def test_pr_auc_noise_monotonicity_averaged_40_surfaces():
+def test_pr_auc_noise_monotonicity_averaged_40_surfaces(prior_surfaces):
     """
     Mean PR-AUC over 40 surfaces falls strictly as reconstruction noise
     grows through four well-separated levels. The fast suite checks the
     ordering on one surface at two levels; averaging over the population is
-    what the paper actually relies on. Surfaces without visible spots
-    return nan and are excluded (their count is printed).
+    what the paper actually relies on. pr_auc returns nan exactly when the
+    truth mask is empty over the weighted region, so the excluded set
+    depends only on the truth: it is computed once from the truths and
+    asserted identical at every noise level.
     """
+    from starspot_sbi.metrics import spot_mask
+
     rng = np.random.default_rng(4)
-    imgs = _rendered(rng, 40)
+    imgs = _rendered(prior_surfaces, rng, 40)
     beta = 0.6
     levels = (0.03, 0.1, 0.3, 1.0)
+
+    w = weights(beta, *imgs[0].shape, kind='vis')
+    has_spots = np.array([np.sum(w * spot_mask(im)) > 0 for im in imgs])
+
     means = []
     for sigma in levels:
-        vals = [pr_auc(im, im + sigma * rng.normal(size=im.shape), beta)
-                for im in imgs]
-        vals = [v for v in vals if not np.isnan(v)]
-        means.append(np.mean(vals))
-    print(f"{len(vals)} of {len(imgs)} surfaces had visible spots; "
-          "mean pr_auc at sigma "
+        vals = np.array([pr_auc(im, im + sigma * rng.normal(size=im.shape),
+                                beta) for im in imgs])
+        assert np.array_equal(~np.isnan(vals), has_spots), \
+            f"nan set changed at sigma={sigma}"
+        means.append(np.mean(vals[has_spots]))
+    print(f"{int(has_spots.sum())} of {len(imgs)} surfaces have visible "
+          "spots (identical at every level); mean pr_auc at sigma "
           + ", ".join(f"{s}: {m:.4f}" for s, m in zip(levels, means)))
     assert means[0] > means[1] > means[2] > means[3]
 
 
-def test_mae_below_rmse_100_pairs():
+def test_mae_below_rmse_100_pairs(prior_surfaces):
     """
     MAE <= RMSE under every weighting (Jensen), over 100 pairs. An error in
     the shared weighting or aggregation shows up as a violation.
     """
     rng = np.random.default_rng(5)
-    imgs = _rendered(rng, 20)
+    imgs = _rendered(prior_surfaces, rng, 20)
     checked = 0
     for i in range(len(imgs)):
         for j in range(len(imgs)):

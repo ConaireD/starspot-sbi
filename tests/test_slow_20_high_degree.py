@@ -40,6 +40,9 @@ def _quad_theta(l, m, channel):
     Theta integral by adaptive quadrature with the sqrt(1-u^2) endpoint weight
     built into the rule, so the remaining integrand is a polynomial and the
     result is exact to roundoff. Validated below against sympy at (20, 2).
+    lpmv is unnormalised, reaching ~1e40 at l = m = 30 and overflowing above
+    l ~ 90, which is why kernels.py evaluates sph_harm_y instead; this
+    reference therefore does not extend to higher degrees.
     """
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')

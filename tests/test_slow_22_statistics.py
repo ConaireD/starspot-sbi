@@ -9,7 +9,6 @@ docs/conventions.md section 10.
 import numpy as np
 import pytest
 
-from conftest import sample_prior_surfaces
 from starspot_sbi.indexing import (coeffs_to_real, lm_indices, n_coeffs,
                                    real_to_coeffs)
 from starspot_sbi.design_matrix import build_design_matrix, forward_model
@@ -22,7 +21,7 @@ OMEGA = 2 * np.pi
 T_OBS = np.linspace(0.0, 1.0, 216, endpoint=False)
 
 
-def test_reality_condition_500_surfaces():
+def test_reality_condition_500_surfaces(prior_surfaces):
     """
     s_l^{-m} = (-1)^m conj(s_l^m) and real s_l^0 for 500 prior surfaces, and
     the real-packing round trip. place_spot builds the two halves through
@@ -30,7 +29,7 @@ def test_reality_condition_500_surfaces():
     bitwise; measured deviations are ~1e-16 of the coefficient scale.
     """
     rng = np.random.default_rng(20260817)
-    surfaces = sample_prior_surfaces(rng, 500, L)
+    surfaces = prior_surfaces(rng, 500, L)
 
     idx = {(l, m): l * l + l + m for l, m in lm_indices(L)}
     worst_pair, worst_m0, worst_rt = 0.0, 0.0, 0.0
@@ -50,14 +49,14 @@ def test_reality_condition_500_surfaces():
     assert worst_rt < 1e-13
 
 
-def test_forward_model_imaginary_residual_300_surfaces(kernels_L30):
+def test_forward_model_imaginary_residual_300_surfaces(kernels_L30, prior_surfaces):
     """
     max|Im| / max|Re| of A s for 300 prior surfaces, all three channels, two
     inclinations. Conventions section 8 measures 1e-19 to 3e-15 on single
     draws; the bound is the fast suite's 1e-12.
     """
     rng = np.random.default_rng(11)
-    surfaces = sample_prior_surfaces(rng, 300, L)
+    surfaces = prior_surfaces(rng, 300, L)
     ks = [kernels_L30['x'], kernels_L30['y'], kernels_L30['phot']]
 
     worst = 0.0
@@ -93,14 +92,14 @@ def test_design_matrix_linearity_200_pairs(kernels_L30):
     assert worst < 1e-12
 
 
-def test_rotational_equivariance_200_surfaces(kernels_L30):
+def test_rotational_equivariance_200_surfaces(kernels_L30, prior_surfaces):
     """
     s_l^m -> s_l^m e^{-i m D} equals t -> t + D/omega for 200 prior
     surfaces, all three channels, at the production degree. The fast suite
     asserts this once at L = 4. Measured relative deviation ~1e-13.
     """
     rng = np.random.default_rng(13)
-    surfaces = sample_prior_surfaces(rng, 200, L)
+    surfaces = prior_surfaces(rng, 200, L)
     ks = [kernels_L30['x'], kernels_L30['y'], kernels_L30['phot']]
     D = 0.37
     phase = np.array([np.exp(-1j * m * D) for l, m in lm_indices(L)])
@@ -118,7 +117,7 @@ def test_rotational_equivariance_200_surfaces(kernels_L30):
     assert worst < 1e-10
 
 
-def test_min_intensity_distribution_500_surfaces():
+def test_min_intensity_distribution_500_surfaces(prior_surfaces):
     """
     The generator's population against the measured table in conventions
     section 10 (median minimum intensity 0.536, deepest -0.59, 0.055 per
@@ -128,7 +127,7 @@ def test_min_intensity_distribution_500_surfaces():
     cent.
     """
     rng = np.random.default_rng(14)
-    surfaces = sample_prior_surfaces(rng, 500, L)
+    surfaces = prior_surfaces(rng, 500, L)
 
     Y = build_Ylm_matrix(L, L + 1, 2 * L + 2)
     S = np.column_stack(surfaces)

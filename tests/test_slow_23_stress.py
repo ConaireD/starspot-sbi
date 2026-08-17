@@ -148,11 +148,13 @@ def test_black_wide_spot_flux_bounds(kernels_L30):
 def test_unspotted_surface_through_every_metric():
     """
     A uniform surface through every metric. Right answers: SSIM 1, RMSE and
-    MAE 0, CRPS 0 for a point mass at the truth. Documented sentinels:
-    pr_auc nan (nothing to detect), err_unc_corr nan (zero variance), and
-    detection_operating_points keeps its -1 / nan initialisers. A plausible
-    finite score for any of these would be the silent failure this test
-    exists to catch.
+    MAE 0, CRPS 0 for a point mass at the truth. pr_auc and err_unc_corr
+    return their documented nan. detection_operating_points has no documented
+    contract for the nothing-to-detect case; its current -1 / nan values are
+    loop initialisers leaking out, so the assertion is only that no
+    plausible score comes back (nan or negative), not the sentinel itself,
+    which is free to change to nan without breaking this test. A plausible
+    finite score here would be the silent failure this test exists to catch.
     """
     flat = np.ones((120, 240))
     beta = 0.6
@@ -168,10 +170,10 @@ def test_unspotted_surface_through_every_metric():
     assert np.isnan(out['err_unc_corr'])
 
     ops = detection_operating_points(flat, flat, beta)
-    assert ops['f1_max'] == -1.0
-    assert np.isnan(ops['f1_threshold'])
-    assert np.isnan(ops['precision_floor_threshold'])
-    print("unspotted surface: identities exact, sentinels as documented")
+    assert np.isnan(ops['f1_max']) or ops['f1_max'] < 0
+    assert (np.isnan(ops['recall_at_precision_floor'])
+            or ops['recall_at_precision_floor'] < 0)
+    print("unspotted surface: identities exact, no plausible detection score")
 
 
 def test_metrics_on_tiny_grids():
@@ -204,24 +206,35 @@ def test_metrics_on_tiny_grids():
     print("4 x 8 grid: all metrics behave")
 
 
-def test_ssim_map_grid_smaller_than_window_raises_or_is_correct():
+def test_ssim_map_rejects_too_few_theta_rows():
     """
-    DELIBERATELY FAILING, documenting a bug. With n_theta = 3 the polar
-    continuation can only reflect 2 interior rows where the 7-pixel window
-    needs 3, and _box_theta_polar_fix silently returns 1 row instead of 3:
-    ssim_map on a (3, 8) image returns shape (1, 8). A silently wrong shape
-    propagates NaNs or index errors far from the cause; this input should
-    either return (3, 8) or raise. Measured: returns (1, 8).
+    The 7-pixel window's polar continuation reflects win_size // 2 = 3
+    interior rows, so n_theta = 3 cannot be served: _box_theta_polar_fix
+    used to return the wrong shape silently ((1, 8) for a (3, 8) input) and
+    now raises. n_theta = 4 is the smallest servable grid and must keep its
+    shape.
     """
     rng = np.random.default_rng(1)
-    a = 1.0 + 0.2 * rng.normal(size=(3, 8))
-    try:
-        out = ssim_map(a, a)
-    except Exception:
-        return                     # raising is acceptable behaviour
-    print(f"ssim_map((3, 8)) returned shape {out.shape}, expected (3, 8) "
-          f"or an exception")
-    assert out.shape == a.shape
+    with pytest.raises(ValueError, match='rows'):
+        ssim_map(1.0 + 0.2 * rng.normal(size=(3, 8)),
+                 1.0 + 0.2 * rng.normal(size=(3, 8)))
+    a = 1.0 + 0.2 * rng.normal(size=(4, 8))
+    assert ssim_map(a, a).shape == (4, 8)
+    print("(3, 8) raises, (4, 8) keeps its shape")
+
+
+def test_ssim_map_rejects_odd_phi_count():
+    """
+    The pole continuation rolls by half the phi grid, which assumes an even
+    sample count; an odd count would roll by floor(n/2) and silently
+    misalign the virtual rows. Verified that (8, 9) raises rather than
+    returning something plausible.
+    """
+    rng = np.random.default_rng(2)
+    with pytest.raises(ValueError, match='even'):
+        ssim_map(1.0 + 0.2 * rng.normal(size=(8, 9)),
+                 1.0 + 0.2 * rng.normal(size=(8, 9)))
+    print("(8, 9) raises on the odd phi axis")
 
 
 def test_single_sample_crps_equals_weighted_mae():

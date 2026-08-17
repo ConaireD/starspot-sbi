@@ -1,8 +1,10 @@
 """
-Shared fixtures and helpers for the slow suite (tests/test_slow_*).
+Shared fixtures for the slow suite (tests/test_slow_*).
 
 The fast suite (test_00 to test_11) does not use anything here; this file only
-defines fixtures and helper functions, so collecting it has no side effects.
+defines fixtures, so collecting it has no side effects. Consumers take the
+fixtures as arguments rather than importing this module, so the suite survives
+--import-mode=importlib.
 """
 
 from pathlib import Path
@@ -24,21 +26,31 @@ def kernels_L30():
     return {'x': kx, 'y': ky, 'phot': kphot}
 
 
-def sample_prior_surfaces(rng, n, L=30):
+@pytest.fixture(scope='session')
+def prior_surfaces():
     """
-    Surfaces drawn from the documented dataset prior (docs/conventions.md
-    section 12): 1 to 11 spots, sin-uniform latitude, uniform longitude,
-    radius uniform on (6, 12) degrees, contrast uniform on (0.5, 0.9),
-    Lanczos taper on. Returns a list of complex coefficient vectors.
+    A sampler of surfaces from the documented dataset prior
+    (docs/conventions.md section 12): 1 to 11 spots inclusive, sin-uniform
+    latitude on (-90, 90), longitude uniform on (0, 360), radius uniform on
+    (6, 12) degrees, contrast uniform on (0.5, 0.9), Lanczos taper on.
+
+    Returns a callable (rng, n, L, return_params=False) giving a list of
+    complex coefficient vectors, or (surfaces, params) when return_params is
+    true, where params holds the list of spot dictionaries per surface.
     """
     from starspot_sbi.surfaces import generate_spotted_surface
-    out = []
-    for _ in range(n):
-        k = int(rng.integers(1, 12))
-        spots = [{'theta': float(np.arccos(rng.uniform(-1.0, 1.0))),
-                  'phi': float(rng.uniform(0.0, 2.0 * np.pi)),
-                  'radius': float(np.radians(rng.uniform(6.0, 12.0))),
-                  'contrast': float(rng.uniform(0.5, 0.9))}
-                 for _ in range(k)]
-        out.append(generate_spotted_surface(L, spots, lanczos=True))
-    return out
+
+    def sample(rng, n, L=30, return_params=False):
+        surfaces, params = [], []
+        for _ in range(n):
+            k = int(rng.integers(1, 12))
+            spots = [{'theta': float(np.arccos(rng.uniform(-1.0, 1.0))),
+                      'phi': float(np.radians(rng.uniform(0.0, 360.0))),
+                      'radius': float(np.radians(rng.uniform(6.0, 12.0))),
+                      'contrast': float(rng.uniform(0.5, 0.9))}
+                     for _ in range(k)]
+            surfaces.append(generate_spotted_surface(L, spots, lanczos=True))
+            params.append(spots)
+        return (surfaces, params) if return_params else surfaces
+
+    return sample
