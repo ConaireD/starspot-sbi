@@ -24,3 +24,5 @@ filterwarnings = [
     "ignore:enable_nested_tensor is True:UserWarning",
     "ignore:torch.triangular_solve is deprecated:UserWarning",
 ]
+addopts = "-m 'not slow'"
+markers = ["slow: deeper checks, run with -m slow"]

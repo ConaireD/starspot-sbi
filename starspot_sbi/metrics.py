@@ -151,16 +151,25 @@ def _box_theta_polar_fix(a, win_size):
     since phi and phi + pi meet at the pole. The pole row itself is excluded
     from the reflection, being its own image.
 
-    Requires an even number of phi samples and an odd window.
+    Requires an even number of phi samples, an odd window, and at least
+    win_size // 2 + 1 rows, since the reflection draws win_size // 2 interior
+    rows from each end.
     """
     pad = win_size // 2
+    if a.shape[0] < pad + 1:
+        raise ValueError(
+            f"theta axis has {a.shape[0]} rows; a window of {win_size} needs at "
+            f"least {pad + 1}, since the reflection draws {pad} interior rows "
+            f"from each pole")
+    if a.shape[1] % 2:
+        raise ValueError(f"phi axis has {a.shape[1]} samples; an even number is "
+                         f"required for the half-turn roll")
     roll = a.shape[1] // 2
     top = np.roll(a[1:pad + 1][::-1], roll, axis=1)
     bot = np.roll(a[-pad - 1:-1][::-1], roll, axis=1)
     app = np.concatenate([top, a, bot], axis=0)
     out = uniform_filter1d(app, win_size, axis=0, mode='constant')
     return out[pad:-pad]
-
 
 def _box(a, win_size):
     """Separable box filter: theta pole-correct, phi periodic."""
