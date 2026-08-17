@@ -19,3 +19,8 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = ["starspot_sbi"]
 
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:enable_nested_tensor is True:UserWarning",
+    "ignore:torch.triangular_solve is deprecated:UserWarning",
+]

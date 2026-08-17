@@ -1,0 +1,109 @@
+{
+  "dataset": "Sydney/data/fast/L30_N216_grouped/explicit_holdout",
+  "surface_file": "surface_0000004.npy",
+  "signal_file": "signal_0000004.npy",
+  "surface_idx": 4,
+  "selection_criteria": "first surface, by sorted filename, in the explicit holdout with n_spots between 3 and 6 inclusive and whose rendered minimum intensity exceeds 0.2, so it is neither a trivial nor an outlying surface",
+  "selection_n_spots_range": [
+    3,
+    6
+  ],
+  "selection_min_intensity": 0.2,
+  "measured_min_intensity": 0.6043082226616676,
+  "n_spots": 5,
+  "betas_deg": [
+    3,
+    5,
+    13,
+    15,
+    25,
+    28,
+    31,
+    35,
+    40,
+    47,
+    49,
+    52,
+    58,
+    59,
+    71,
+    74,
+    77,
+    83,
+    84,
+    87
+  ],
+  "inclination_slots_kept": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "channel_order": [
+    "astro_x",
+    "astro_y",
+    "phot"
+  ],
+  "l_max": 30,
+  "n_obs": 216,
+  "omega": 6.283185307179586,
+  "p_rot": 1.0,
+  "signal_shape": [
+    20,
+    3,
+    216
+  ],
+  "spots": [
+    {
+      "spot_idx": 0,
+      "theta_deg": -2.593863261986652,
+      "phi_deg": 139.62520203076767,
+      "radius_deg": 9.643822158813776,
+      "contrast": 0.7772922312923443
+    },
+    {
+      "spot_idx": 1,
+      "theta_deg": -30.303505718252826,
+      "phi_deg": 43.27792436226048,
+      "radius_deg": 7.120458225511119,
+      "contrast": 0.8379519218043116
+    },
+    {
+      "spot_idx": 2,
+      "theta_deg": -8.507155094547015,
+      "phi_deg": 289.47512935832344,
+      "radius_deg": 8.750371769287948,
+      "contrast": 0.6178548861985185
+    },
+    {
+      "spot_idx": 3,
+      "theta_deg": 29.95641840201028,
+      "phi_deg": 15.28767567011229,
+      "radius_deg": 9.173435367936886,
+      "contrast": 0.7117253774827101
+    },
+    {
+      "spot_idx": 4,
+      "theta_deg": -54.07086326522096,
+      "phi_deg": 318.6131229752427,
+      "radius_deg": 6.532891181419534,
+      "contrast": 0.5192687576105006
+    }
+  ]
+}

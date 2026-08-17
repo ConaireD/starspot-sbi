@@ -8,4 +8,5 @@ weights/*.pt
 !weights/README.md
 *.npy
 *.npz
+!tests/fixtures/*.npy
 .venv/
