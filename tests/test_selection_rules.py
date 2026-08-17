@@ -118,10 +118,14 @@ def test_dropped_entries_vanish(L, kernels):
     """
     for name in ("kphot", "kx", "ky"):
         k = kernels[L][name]
+        scale = np.max(np.abs(k))
+        worst = 0.0
         for i, (l, m) in enumerate(lm_indices(L)):
             if not RULES[name](l, m):
-                assert abs(k[i]) < 1e-15, f"{name}[{l},{m}] = {k[i]!r}"
-
+                worst = max(worst, abs(k[i]))
+                assert abs(k[i]) < 1e-13 * scale, f"{name}[{l},{m}] = {k[i]!r}"
+        print(f"L={L:2d} {name:5s} largest excluded entry {worst:.2e}, "
+              f"scale {scale:.3f}, bound {1e-13*scale:.2e}")
 
 @pytest.mark.parametrize("L", LS)
 def test_phi_guard_entries_are_exactly_zero(L, kernels):
@@ -160,31 +164,45 @@ def test_parity_complementarity(kernels, L):
 
 def test_exceptions_are_real():
     """
-    The three exceptions are not artefacts of the threshold: the excluded
-    entries are zero while their rule-allowed neighbours at the same |m| are not.
+    The three exceptions survive a change of threshold. Excluded entries vanish
+    while their rule-allowed neighbours at the same |m| do not.
+
+    Bounds are relative to the largest entry of each kernel. An absolute bound
+    tracks _GL_N rather than the physics: the analytically zero entries are
+    ~1e-16 at _GL_N = 500 and ~1e-15 at 2000, since the quadrature sum
+    accumulates four times as many terms.
     """
     L = 12
     kx, ky, kphot = precompute_kernels_fast(L)
     idx = {lm: i for i, lm in enumerate(lm_indices(L))}
 
+    zero_x, zero_y, zero_p = (1e-13 * np.max(np.abs(k)) for k in (kx, ky, kphot))
+    print(f"L={L} relative zero bounds: kx {zero_x:.2e}, ky {zero_y:.2e}, kphot {zero_p:.2e}")
+
     # kphot at |m|=1: l=1 survives, odd l >= 3 vanish by orthogonality
     assert abs(kphot[idx[(1, 1)]]) > ZTOL
+    worst = max(abs(kphot[idx[(l, s)]]) for l in (3, 5, 7, 9, 11) for s in (1, -1))
+    print(f"  kphot |m|=1, odd l>=3: largest {worst:.2e}, survivor (1,1) {abs(kphot[idx[(1, 1)]]):.3e}")
     for l in (3, 5, 7, 9, 11):
-        assert abs(kphot[idx[(l, 1)]]) < 1e-15
-        assert abs(kphot[idx[(l, -1)]]) < 1e-15
+        assert abs(kphot[idx[(l, 1)]]) < zero_p
+        assert abs(kphot[idx[(l, -1)]]) < zero_p
 
     # kx at |m|=2: l=2 survives, even l >= 4 vanish
     assert abs(kx[idx[(2, 2)]]) > ZTOL
+    worst = max(abs(kx[idx[(l, s)]]) for l in (4, 6, 8, 10, 12) for s in (2, -2))
+    print(f"  kx    |m|=2, even l>=4: largest {worst:.2e}, survivor (2,2) {abs(kx[idx[(2, 2)]]):.3e}")
     for l in (4, 6, 8, 10, 12):
-        assert abs(kx[idx[(l, 2)]]) < 1e-15
-        assert abs(kx[idx[(l, -2)]]) < 1e-15
+        assert abs(kx[idx[(l, 2)]]) < zero_x
+        assert abs(kx[idx[(l, -2)]]) < zero_x
 
     # ky at |m|=1: l=2 survives, even l >= 4 vanish
     assert abs(ky[idx[(2, 1)]]) > ZTOL
+    worst = max(abs(ky[idx[(l, s)]]) for l in (4, 6, 8, 10, 12) for s in (1, -1))
+    print(f"  ky    |m|=1, even l>=4: largest {worst:.2e}, survivor (2,1) {abs(ky[idx[(2, 1)]]):.3e}")
     for l in (4, 6, 8, 10, 12):
-        assert abs(ky[idx[(l, 1)]]) < 1e-15
-        assert abs(ky[idx[(l, -1)]]) < 1e-15
-
+        assert abs(ky[idx[(l, 1)]]) < zero_y
+        assert abs(ky[idx[(l, -1)]]) < zero_y
+        
 
 @pytest.mark.parametrize("L", LS)
 def test_hermitian_symmetry(kernels, L):

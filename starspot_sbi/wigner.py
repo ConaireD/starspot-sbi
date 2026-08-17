@@ -26,7 +26,7 @@ from sympy.physics.wigner import wigner_d_small
 def wigner_D_from_d(l, alpha, gamma, d):
     """Full Wigner D-matrix from the small-d matrix and the two z rotations."""
     ms = np.arange(-l, l + 1)
-    return np.diag(np.exp(-1j * ms * alpha)) @ d @ np.diag(np.exp(-1j * ms * gamma))
+    return np.diag(np.exp(-1j*ms*alpha)) @ d @ np.diag(np.exp(-1j*ms*gamma))
 
 #########
 # Exact #
@@ -66,7 +66,7 @@ def wigner_d_element_fast(l, m, mp, beta):
     cos_half = np.cos(beta / 2)
     sin_half = np.sin(beta / 2)
 
-    log_prefactor = 0.5 * (
+    log_prefactor = 0.5*(
         gammaln(l + m + 1) + gammaln(l - m + 1)
         + gammaln(l + mp + 1) + gammaln(l - mp + 1)
     )
@@ -76,19 +76,19 @@ def wigner_d_element_fast(l, m, mp, beta):
         + gammaln(mp - m + s + 1) + gammaln(l - mp - s + 1)
     )
 
-    power_cos = 2 * l + m - mp - 2 * s
-    power_sin = mp - m + 2 * s
+    power_cos = 2*l + m - mp - 2*s
+    power_sin = mp - m + 2*s
 
     log_trig = (
         power_cos * np.log(np.abs(cos_half) + 1e-300)
         + power_sin * np.log(np.abs(sin_half) + 1e-300)
     )
 
-    sign = (-1.0) ** s
+    sign = (-1.0)**s
     if cos_half < 0:
-        sign *= (-1.0) ** power_cos
+        sign *= (-1.0)**power_cos
     if sin_half < 0:
-        sign *= (-1.0) ** power_sin
+        sign *= (-1.0)**power_sin
 
     return np.sum(sign * np.exp(log_prefactor - log_den + log_trig))
 

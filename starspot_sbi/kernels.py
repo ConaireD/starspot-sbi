@@ -109,8 +109,43 @@ def I_u_phot_exact(l_val, m_val):
     P = assoc_legendre(l_val, Abs(m_val), _u_sym)
     return complex(N(integrate(sqrt(1 - _u_sym**2) * P, (_u_sym, -1, 1))))
 
+
+
+# ---------------------------------------------------------------------------
+# Gauss-Legendre quadrature for the theta integrals.
+#
+# _GL_N is a pinned constant: 500 is what generated the published
+# dataset, and changing it changes the stored signals slightly.
+# It is one of the two module-level constants the package allows 
+# (see docs/conventions.md).
+#
+# Gauss-Legendre with N nodes is exact for polynomials of degree <= 2N-1.
+# The x-channel integrand (1-u^2) P_l^|m|(u) is a polynomial, so kx is exact to roundoff.
+# The y and photometric integrands have sqrt(1-u^2), which has a half-integer power
+# at u = +-1 i.e. not a polynomial and not analytic at the endpoints, so the quadrature
+# converges algebraically as N^-3. 
+# More nodes doesn't necessarilly help the analytically-zero entries grow from ~1e-16
+# at N=500 to ~1e-15 at N=2000 because the dot product has four times as many terms
+# to cancel.
+#
+# Measured, this package, L = 4, uniform unit-intensity map:
+#
+#     N = 500    F_0 - 1 = 4.182e-9
+#     N = 2000   F_0 - 1 = 6.538e-11      ratio 63.97 against the predicted 4^3 = 64
+#
+# F_0 - 1 = 4.2e-9 is the accuracy floor of the whole forward model at the
+# production setting, five orders below the mission photometric noise 1e-4.
+# Every downstream tolerance in the test suite descends from this number, so
+# tests that guard it are written relative to the signal scale, not absolute.
+#
+# If a future change needs more accuracy, raising N is the may be wrong. Perhaps
+# substitute back to theta (the sqrt becomes sin theta and the integrand is
+# smooth on [0, pi]) or use a rule built for endpoint singularities, e.g.
+# tanh-sinh?  Either would also require you to regenerate the dataset.
+# ---------------------------------------------------------------------------
+
 # Fast
-_GL_N = 500   # 2000 gives ~60x better ky/kphot; 500 reproduces the published dataset
+_GL_N = 500   # 2000 gives ~64x better ky/kphot; 500 reproduces the published dataset
 _GL_NODES, _GL_WEIGHTS = np.polynomial.legendre.leggauss(_GL_N)
 _GL_THETA = np.arccos(_GL_NODES)
 
@@ -179,9 +214,13 @@ def precompute_kernels_fast(L):
     Stable to l ~ 100+.
 
     Accuracy at _GL_N = 500, relative, measured against the sympy path at L=8:
-        kx     2.7e-11    (integrand polynomial, GL is exact to roundoff)
-        ky     4.3e-07    (integrand carries sqrt(1-u^2), not polynomial)
+        kx     2.7e-11    (polynomial integrand, exact to roundoff)
+        ky     4.3e-07    (integrand carries sqrt(1-u^2))
         kphot  8.6e-07
+    These are maxima over (l, m), dominated by high l. At l = 0, where the
+    normalisation is set, the photometric error is 4.2e-9. See the note above
+    _GL_N for the N^-3 convergence and for why 500 is pinned.
+    
     Error falls as N^-3. _GL_N = 2000 gives 6.7e-09 and 1.3e-08. The default
     stays at 500 because it reproduces the published dataset bitwise; both are
     far below the 1e-4 mission noise floor.
