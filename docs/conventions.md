@@ -445,6 +445,14 @@ Seeding is `SeedSequence([split_seed, surface_idx])`, so surface `i` is
 reproducible at any chunk size and after any resume. Training seed 20260101,
 holdout seed 20270707. A holdout seed is never reused by a training split.
 
+Both `metadata.csv` files hold more rows than surfaces. The training split has
+2,084,000 rows over 1,280,000 distinct `surface_idx`, and the holdout has
+170,000 rows over 100,000. Because a surface depends only on its index, repeated
+rows are byte-identical and the `.npy` files they name are complete and correct.
+A reader must call `drop_duplicates('surface_idx', keep='first')` before counting
+rows or aggregating over them, or the repeated surfaces will carry twice the
+weight of the rest.
+
 ---
 
 ## 13. Numbers that identify each convention
