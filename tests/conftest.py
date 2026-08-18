@@ -1,7 +1,7 @@
 """
 Shared fixtures for the slow suite (tests/test_slow_*).
 
-The fast suite (test_00 to test_11) does not use anything here; this file only
+The fast suite (test_00 to test_12) does not use anything here; this file only
 defines fixtures, so collecting it has no side effects. Consumers take the
 fixtures as arguments rather than importing this module, so the suite survives
 --import-mode=importlib.
