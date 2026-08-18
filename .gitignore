@@ -12,3 +12,5 @@ weights/*.pt
 .venv/
 results/*
 !results/README.md
+caches/*
+!caches/README.md
