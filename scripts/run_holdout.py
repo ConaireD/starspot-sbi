@@ -43,10 +43,10 @@ from starspot_sbi.indexing import coeffs_to_real
 from starspot_sbi.render import render, render_coeffs
 from starspot_sbi.metrics import (ssim_aa_vis, ssim_aa_wmean, ssim_aa_full,
                                   rmse, mae, crps, pr_auc, err_unc_corr,
-                                  spot_mask, SPOT_THRESHOLD)
+                                  spot_mask, weights, wmean, SPOT_THRESHOLD)
 from starspot_sbi.models import FAMILIES, load_vae, load_flow
 from starspot_sbi.pipeline import (sample_draws, posterior_mean, render_draws,
-                                   power_spectrum, select_channels,
+                                   power_spectrum,
                                    LOG10_SIGMA_PHOT_MISSION,
                                    LOG10_SIGMA_ASTRO_MISSION)
 
@@ -145,6 +145,12 @@ def score(truth, recon, beta_deg, samples=None, recon_std=None,
         raise ValueError(f'truth is {truth.shape} and the reconstruction is '
                          f'{recon.shape}; both must be on the same render grid')
     beta = np.radians(beta_deg)
+    # The filling factors are area-weighted over the ever-visible region, as
+    # every other metric in this row is. An unweighted mean counts grid cells
+    # rather than stellar surface and over-weights the poles, and scoring the
+    # truth over the whole sphere while the reconstruction is scored over the
+    # visible region charges the network for the cap it cannot recover.
+    w = weights(beta, *truth.shape, kind='vis')
     out = {
         'ssim_vis':   ssim_aa_vis(truth, recon, beta),
         'ssim_wmean': ssim_aa_wmean(truth, recon, beta),
@@ -154,8 +160,8 @@ def score(truth, recon, beta_deg, samples=None, recon_std=None,
         'mae_vis':    mae(truth, recon, beta, 'vis'),
         'pr_auc':     pr_auc(truth, recon, beta, 'vis', threshold=threshold),
         'pr_auc_full': pr_auc(truth, recon, beta, 'full', threshold=threshold),
-        'sff_true':   float(np.mean(spot_mask(truth, threshold))),
-        'sff_rec':    float(np.mean(spot_mask(recon, threshold))),
+        'sff_true':   wmean(spot_mask(truth, threshold), w),
+        'sff_rec':    wmean(spot_mask(recon, threshold), w),
     }
     out['crps'] = crps(truth, samples, beta, 'vis') if samples is not None else np.nan
     out['crps_full'] = crps(truth, samples, beta, 'full') if samples is not None else np.nan
@@ -194,7 +200,11 @@ def run_family(family, pairs, meta, holdout_dir, weights_dir, out_dir, args):
         for surface_idx, slot in block:
             coeffs, sig, beta_deg, ns = read_pair(holdout_dir, meta, surface_idx, slot)
             truths.append(render(coeffs_to_real(coeffs)))
-            signals.append(select_channels(sig, family))
+            # The stored three-channel signal, unpermuted. sample_draws applies
+            # to_model_order, which selects and reorders for the family, so a
+            # select_channels call here permutes twice and puts the photometric
+            # series in an astrometric slot.
+            signals.append(sig)
             betas.append(beta_deg)
             n_spots.append(ns)
             ids.append((surface_idx, slot))
