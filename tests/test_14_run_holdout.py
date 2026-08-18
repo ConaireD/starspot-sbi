@@ -33,6 +33,11 @@ from starspot_sbi.kernels import precompute_kernels_fast         # noqa: E402
 from starspot_sbi.design_matrix import build_design_matrix, forward_model  # noqa: E402
 from starspot_sbi.surfaces import generate_spotted_surface       # noqa: E402
 from starspot_sbi.render import render, N_THETA, N_PHI           # noqa: E402
+from starspot_sbi.pipeline import (render_draws, select_channels,  # noqa: E402
+                                   to_model_order)
+from starspot_sbi.metrics import (spot_mask, weights, wmean,     # noqa: E402
+                                  ssim_aa_vis, rmse as rmse_metric,
+                                  cap_boundary_lat, SPOT_THRESHOLD)
 
 L = 8
 N_OBS = 32
@@ -375,3 +380,170 @@ def test_run_family_writes_the_combined_csv(holdout, tmp_path, monkeypatch):
     assert len(on_disk) == N_SURF
     assert list(on_disk['idx']) == sorted(on_disk['idx'])
     assert list(on_disk.columns) == COLUMNS
+
+############################
+# Channel order            #
+############################
+
+def test_run_family_passes_the_stored_channel_order(holdout, tmp_path,
+                                                    monkeypatch):
+    """
+    run_family must hand sample_draws the stored three-channel signal, since
+    sample_draws applies to_model_order itself. A select_channels call in
+    run_family permutes twice, and [2,0,1] composed with itself is [1,2,0],
+    which puts the photometric series in an astrometric slot. The context then
+    standardises to |z| in the tens of thousands and the flow's spline inverse
+    fails its discriminant assertion.
+
+    The channels are told apart by their means. Photometry is a relative flux
+    near one; the astrometric channels are centroid offsets near zero.
+    """
+    import argparse
+
+    import run_holdout as rh
+
+    pairs, meta = load_holdout_index(holdout, n=N_SURF, seed=0)
+    captured = {}
+
+    def capture(signals, betas, family, *a, **k):
+        captured['sig'] = np.asarray(signals)
+        return np.zeros((len(signals), 8, (L + 1) ** 2), dtype=np.float32)
+
+    monkeypatch.setattr(rh, 'load_vae', lambda *a, **k: (None, None, None))
+    monkeypatch.setattr(rh, 'load_flow', lambda *a, **k: (None, {'ch': [0, 1, 2]}))
+    monkeypatch.setattr(rh, 'sample_draws', capture)
+    monkeypatch.setattr(
+        rh, 'render_draws',
+        lambda v, *a, **k: np.ones((np.atleast_2d(v).shape[0], N_THETA, N_PHI)))
+
+    args = argparse.Namespace(draws=8, batch=4, seed=0, save_draws=False,
+                              spectra=False, log_sigma_phot=-4.0,
+                              log_sigma_astro=-3.5, device='cpu')
+    rh.run_family('phot_axay', pairs, meta, holdout, str(WEIGHTS),
+                  str(tmp_path / 'results'), args)
+
+    sig = captured['sig']
+    means = [float(np.mean(sig[:, j])) for j in range(3)]
+    print(f'channel means as passed to sample_draws: '
+          + ', '.join(f'{m:+.4f}' for m in means))
+    assert sig.shape[1] == 3
+    assert means[2] > 0.5, 'stored order puts photometry last'
+    assert abs(means[0]) < 0.1 and abs(means[1]) < 0.1
+
+    once = to_model_order(sig, 'phot_axay', stored=True)
+    twice = to_model_order(once, 'phot_axay', stored=True)
+    m_once = [float(np.mean(once[:, j])) for j in range(3)]
+    m_twice = [float(np.mean(twice[:, j])) for j in range(3)]
+    print(f'one permutation: ' + ', '.join(f'{m:+.4f}' for m in m_once))
+    print(f'two permutations: ' + ', '.join(f'{m:+.4f}' for m in m_twice))
+    assert m_once[0] > 0.5, 'model order puts photometry first'
+    assert m_twice[0] < 0.1, 'the double permutation must be detectable'
+    assert np.array_equal(once, select_channels(sig, 'phot_axay'))
+
+
+############################
+# The filling factor       #
+############################
+
+L_SFF = 20
+BETA_SFF = 60.0
+
+
+def _capped_surface(theta_deg, radius_deg=15.0, contrast=0.4):
+    """One spot at a given colatitude, rendered on the production grid."""
+    s = generate_spotted_surface(
+        L_SFF, [{'theta': np.radians(theta_deg), 'phi': 0.0,
+                 'radius': np.radians(radius_deg), 'contrast': contrast}],
+        lanczos=True)
+    return render_draws(coeffs_to_real(s)[None], N_THETA, N_PHI)[0]
+
+
+def test_filling_factor_ignores_a_spot_in_the_unobservable_cap():
+    """
+    The cap is the colatitudes below beta, which no observer at that
+    inclination ever sees. A spot there contributes nothing to sff_true, and a
+    spot at the same size on the visible hemisphere contributes a positive
+    fraction. An unweighted mean over the grid counts both.
+    """
+    print(f'cap boundary at beta = {BETA_SFF} deg: latitude '
+          f'{cap_boundary_lat(np.radians(BETA_SFF)):.1f}')
+
+    hidden = _capped_surface(10.0)
+    shown = _capped_surface(110.0)
+    print(f'minimum intensity: hidden {hidden.min():.4f}, shown {shown.min():.4f}')
+    assert hidden.min() < SPOT_THRESHOLD, 'the spot must be deep enough to count'
+    assert shown.min() < SPOT_THRESHOLD
+
+    plain_hidden = float(np.mean(spot_mask(hidden)))
+    out_hidden = score(hidden, hidden, BETA_SFF)
+    out_shown = score(shown, shown, BETA_SFF)
+    print(f'hidden spot: unweighted {plain_hidden:.5f}, sff_true '
+          f'{out_hidden["sff_true"]:.5f}; shown spot: sff_true '
+          f'{out_shown["sff_true"]:.5f}')
+
+    assert plain_hidden > 1e-3, 'the unweighted mean must see it, or the test '\
+                                'cannot tell the two definitions apart'
+    assert out_hidden['sff_true'] == 0.0
+    assert out_shown['sff_true'] > 1e-3
+
+
+def test_filling_factor_is_area_weighted():
+    """
+    Area weighting by sin(theta) is what makes the number a fraction of stellar
+    surface rather than of grid cells. A spot near a pole covers many more cells
+    than the same solid angle at the equator, so the two definitions separate.
+    """
+    polar = _capped_surface(100.0)          # just inside the visible region
+    equatorial = _capped_surface(90.0)
+
+    w = weights(0.0, N_THETA, N_PHI, kind='vis')
+    for name, img in (('near-polar', polar), ('equatorial', equatorial)):
+        plain = float(np.mean(spot_mask(img)))
+        area = wmean(spot_mask(img), w)
+        print(f'{name}: unweighted {plain:.5f}, area weighted {area:.5f}, '
+              f'ratio {plain / area:.4f}')
+        assert abs(plain / area - 1.0) > 1e-3
+
+
+############################
+# Render resolution        #
+############################
+
+def test_ssim_depends_on_the_render_grid_and_rmse_does_not():
+    """
+    SSIM compares a fixed pixel window, so its value is a property of the grid
+    as much as of the surfaces. On the released holdout the same reconstructions
+    score 0.94289 at 60 x 120 and 0.96141 at 120 x 240, while RMSE moves by
+    0.00006. An SSIM number is therefore quotable only with its grid, and the
+    package renders at 120 x 240.
+    """
+    rng = np.random.default_rng(3)
+    s = generate_spotted_surface(
+        L_SFF, [{'theta': np.radians(70.0), 'phi': 0.4,
+                 'radius': np.radians(12.0), 'contrast': 0.5},
+                {'theta': np.radians(115.0), 'phi': -1.2,
+                 'radius': np.radians(9.0), 'contrast': 0.6}],
+        lanczos=True)
+    truth = coeffs_to_real(s)
+
+    # An error with power at the truncation scale, which is what a decoded
+    # reconstruction leaves behind. A purely low-degree error would be smooth
+    # on both grids and the comparison would be empty.
+    ell = np.floor(np.sqrt(np.arange(truth.size))).astype(float)
+    recon = truth + 3e-3 * (ell / ell.max()) * rng.normal(size=truth.size)
+
+    beta = np.radians(45.0)
+    out = {}
+    for g in ((60, 120), (120, 240)):
+        t = render_draws(truth[None], *g)[0]
+        r = render_draws(recon[None], *g)[0]
+        out[g] = (ssim_aa_vis(t, r, beta), rmse_metric(t, r, beta, 'vis'))
+        print(f'{g}: ssim_vis {out[g][0]:.5f}, rmse_vis {out[g][1]:.5f}')
+
+    d_ssim = abs(out[(60, 120)][0] - out[(120, 240)][0])
+    d_rmse = abs(out[(60, 120)][1] - out[(120, 240)][1])
+    rel_rmse = d_rmse / out[(120, 240)][1]
+    print(f'SSIM moves by {d_ssim:.5f}, RMSE by {d_rmse:.5f} '
+          f'({rel_rmse:.2%} relative)')
+    assert d_ssim > 5e-3
+    assert rel_rmse < 0.10
