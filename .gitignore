@@ -10,3 +10,5 @@ weights/*.pt
 *.npz
 !tests/fixtures/*.npy
 .venv/
+results/*
+!results/README.md
