@@ -283,13 +283,13 @@ def spot_mask(surf, threshold=SPOT_THRESHOLD):
     """Boolean mask of pixels counted as spotted."""
     return surf < threshold
 
-def pr_auc(true_surf, recon_surf, beta, kind='vis',
-           threshold=SPOT_THRESHOLD, n_thresholds=200):
+def pr_auc_weighted(true_surf, recon_surf, w,
+                    threshold=SPOT_THRESHOLD, n_thresholds=200):
     """
-    Area-weighted precision-recall AUC between the true spot mask and the
-    reconstruction, swept over reconstruction thresholds.
+    Precision-recall AUC under an explicit weight array, swept over
+    reconstruction thresholds. nan when the truth mask carries no weight,
+    0.0 when it does and the reconstruction never fires.
     """
-    w = weights(beta, *true_surf.shape, kind=kind)
     truth = spot_mask(true_surf, threshold)
 
     pos = np.sum(w * truth)
@@ -316,6 +316,59 @@ def pr_auc(true_surf, recon_surf, beta, kind='vis',
     precision = np.asarray(precision)
     order = np.argsort(recall)
     return float(np.trapezoid(precision[order], recall[order]))
+
+
+def pr_auc(true_surf, recon_surf, beta, kind='vis',
+           threshold=SPOT_THRESHOLD, n_thresholds=200):
+    """
+    Area-weighted precision-recall AUC between the true spot mask and the
+    reconstruction, swept over reconstruction thresholds.
+    """
+    w = weights(beta, *true_surf.shape, kind=kind)
+    return pr_auc_weighted(true_surf, recon_surf, w, threshold, n_thresholds)
+
+
+def pr_auc_bands(true_surf, recon_surf, axis='lat', band_width=None,
+                 threshold=SPOT_THRESHOLD, n_thresholds=200):
+    """
+    Whole-sphere area-weighted PR-AUC restricted to bands of latitude or
+    longitude, for one surface. Returns (centres, values) with one entry per
+    band; a band whose truth mask carries no weight is nan.
+
+    axis 'lat' bins the render rows (default band 10 deg); 'lon' bins the
+    columns (default 20 deg). Band edges follow the render grid convention:
+    row 0 is latitude +90 and the columns run from -180 to +180 degrees.
+    """
+    n_theta, n_phi = true_surf.shape
+    w = weights(0.0, n_theta, n_phi, kind='full')
+
+    if axis == 'lat':
+        band_width = 10.0 if band_width is None else float(band_width)
+        edges = np.arange(-90.0, 90.0 + band_width / 2, band_width)
+        coord = 90.0 - np.degrees(np.linspace(0, np.pi, n_theta))
+        along_rows = True
+    elif axis == 'lon':
+        band_width = 20.0 if band_width is None else float(band_width)
+        edges = np.arange(-180.0, 180.0 + band_width / 2, band_width)
+        coord = np.degrees(np.linspace(-np.pi, np.pi, n_phi))
+        along_rows = False
+    else:
+        raise ValueError(f"axis must be 'lat' or 'lon', got {axis!r}")
+
+    bins = np.clip(np.digitize(coord, edges) - 1, 0, len(edges) - 2)
+    centres = 0.5 * (edges[:-1] + edges[1:])
+    values = np.full(centres.size, np.nan)
+    for b in range(centres.size):
+        wb = w.copy()
+        if along_rows:
+            wb[bins != b, :] = 0.0
+        else:
+            wb[:, bins != b] = 0.0
+        if wb.sum() <= 0:
+            continue
+        values[b] = pr_auc_weighted(true_surf, recon_surf, wb,
+                                    threshold, n_thresholds)
+    return centres, values
 
 
 def detection_operating_points(true_surf, recon_surf, beta, kind='vis',
@@ -353,6 +406,296 @@ def detection_operating_points(true_surf, recon_surf, beta, kind='vis',
             'precision_floor_threshold': t_at_floor,
             'recall_at_precision_floor': recall_at_floor,
             'truth_threshold': threshold}
+
+#####################
+# Spot matching     #
+#####################
+
+def periodic_label(mask):
+    """
+    Connected components of a boolean mask, periodic in longitude.
+
+    scipy.ndimage.label treats the first and last columns as distant; on the
+    render grid they are the same meridian, so components touching both are
+    one spot. Labels are relabelled 1..n after merging.
+    """
+    from scipy import ndimage
+    lab, n = ndimage.label(mask)
+    if n <= 1:
+        return lab, n
+    parent = np.arange(n + 1)
+    for a, b in zip(lab[:, 0], lab[:, -1]):
+        if a and b:
+            ra, rb = int(a), int(b)
+            while parent[ra] != ra:
+                ra = parent[ra]
+            while parent[rb] != rb:
+                rb = parent[rb]
+            if ra != rb:
+                parent[max(ra, rb)] = min(ra, rb)
+    roots = np.zeros(n + 1, dtype=int)
+    for k in range(1, n + 1):
+        r = k
+        while parent[r] != r:
+            r = parent[r]
+        roots[k] = r
+    new = {v: i + 1 for i, v in enumerate(sorted(set(roots[1:].tolist())))}
+    out = np.zeros_like(lab)
+    for k in range(1, n + 1):
+        out[lab == k] = new[roots[k]]
+    return out, len(new)
+
+
+def spot_centroids(surf, beta, kind='vis', threshold=SPOT_THRESHOLD,
+                   min_area_frac=2e-4):
+    """
+    The connected spotted regions of a rendered surface, deepest first.
+
+    Each entry carries the area-weighted centroid (lat, lon in degrees,
+    latitude +90 at render row 0), the area fraction of the scored region's
+    weight, the minimum intensity (depth), and the effective angular radius
+    of a cap of the same area. Components below min_area_frac are dropped.
+    Two merged true spots return one centroid between them, so these are
+    descriptive quantities (draft Section 6.3).
+    """
+    n_theta, n_phi = surf.shape
+    w = weights(beta, n_theta, n_phi, kind=kind)
+    m = spot_mask(surf, threshold) & (w > 0)
+    if not m.any():
+        return []
+    colat, lon = grid_coordinates(n_theta, n_phi)
+    lat = 90.0 - colat
+    lab, n = periodic_label(m)
+    out = []
+    for k in range(1, n + 1):
+        rs, cs = np.where(lab == k)
+        ww = w[rs, cs]
+        af = float(ww.sum())          # w sums to one over the scored region
+        if af < min_area_frac:
+            continue
+        circ = (ww * np.exp(1j * np.radians(lon[cs]))).sum()
+        out.append({'lat': float((lat[rs] * ww).sum() / ww.sum()),
+                    'lon': float(np.degrees(np.angle(circ))),
+                    'area_frac': af,
+                    'depth': float(surf[rs, cs].min()),
+                    'r_eff': float(np.degrees(np.arccos(
+                        np.clip(1.0 - 2.0 * af, -1.0, 1.0))))})
+    return sorted(out, key=lambda d: d['depth'])
+
+
+def gc_separation(lat1, lon1, lat2, lon2):
+    """Great-circle separation between two points, all in degrees."""
+    a, b = np.radians(lat1), np.radians(lat2)
+    return float(np.degrees(np.arccos(np.clip(
+        np.sin(a) * np.sin(b)
+        + np.cos(a) * np.cos(b) * np.cos(np.radians(lon1 - lon2)), -1, 1))))
+
+
+def match_spots(true_surf, recon_surf, beta, kind='vis',
+                threshold=SPOT_THRESHOLD, gate_deg=25.0, res_deg=6.0,
+                min_area_frac=2e-4):
+    """
+    Greedy nearest-neighbour match of recovered to true spots, one row per
+    matched true spot.
+
+    Each row carries the true position, the latitude and arc-converted
+    longitude errors, the great-circle separation, the contrast deficits
+    (1 - minimum intensity) and area fractions on both sides, and the
+    isolation flag: a true spot is isolated when every other true spot sits
+    further than the sum of their effective radii plus res_deg. Matches
+    beyond gate_deg are dropped, so unmatched spots are absent and the
+    error distribution is conditioned on successful matching (draft Section
+    6.3). The greedy order follows depth, deepest true spot first.
+    """
+    ts = spot_centroids(true_surf, beta, kind, threshold, min_area_frac)
+    if not ts:
+        return []
+    rs = spot_centroids(recon_surf, beta, kind, threshold, min_area_frac)
+    iso = []
+    for i, a in enumerate(ts):
+        gaps = [gc_separation(a['lat'], a['lon'], b['lat'], b['lon'])
+                - a['r_eff'] - b['r_eff']
+                for j, b in enumerate(ts) if j != i]
+        iso.append(bool(len(gaps) == 0 or min(gaps) > res_deg))
+    rows, used = [], set()
+    for i, t in enumerate(ts):
+        best, bj = gate_deg, None
+        for q, r in enumerate(rs):
+            if q in used:
+                continue
+            d = gc_separation(t['lat'], t['lon'], r['lat'], r['lon'])
+            if d < best:
+                best, bj = d, q
+        if bj is None:
+            continue
+        used.add(bj)
+        r = rs[bj]
+        dlon = ((r['lon'] - t['lon'] + 180.0) % 360.0) - 180.0
+        rows.append({'lat_true': t['lat'], 'lon_true': t['lon'],
+                     'dlat': r['lat'] - t['lat'],
+                     'dlon_gc': dlon * np.cos(np.radians(t['lat'])),
+                     'sep': gc_separation(t['lat'], t['lon'],
+                                          r['lat'], r['lon']),
+                     'isolated': iso[i], 'r_eff': t['r_eff'],
+                     'depth_true': 1.0 - t['depth'],
+                     'depth_rec': 1.0 - r['depth'],
+                     'area_true': t['area_frac'],
+                     'area_rec': r['area_frac']})
+    return rows
+
+
+#####################
+# Population summaries #
+#####################
+
+def total_variation(surf, beta=0.0, kind='full'):
+    """
+    Area-weighted total variation on the sphere, periodic in longitude.
+
+    High values mean sharp edges; a reconstruction below the truth is over
+    smoothed and one above it carries spurious fine structure. The render
+    grid's first and last columns sample the same meridian, so the periodic
+    gradient is taken over the first n_phi - 1 columns with spacing
+    2 pi / (n_phi - 1); the legacy implementation padded across the
+    duplicated column, which mis-scales the seam gradient by one grid step.
+    """
+    n_theta, n_phi = surf.shape
+    colat_deg, _ = grid_coordinates(n_theta, n_phi)
+    theta = np.radians(colat_deg)
+
+    d_dtheta = np.gradient(surf, theta, axis=0)
+
+    dphi = 2 * np.pi / (n_phi - 1)
+    core = surf[:, :-1]
+    padded = np.concatenate([core[:, -1:], core, core[:, :1]], axis=1)
+    d_dphi_core = np.gradient(padded, axis=1)[:, 1:-1] / dphi
+    d_dphi = np.concatenate([d_dphi_core, d_dphi_core[:, :1]], axis=1)
+
+    sin_colat = np.maximum(np.sin(theta)[:, None], 1e-6)
+    grad = np.sqrt(d_dtheta ** 2 + (d_dphi / sin_colat) ** 2)
+    # score the periodic core only: the duplicated final column would count
+    # its meridian twice and break invariance under a longitude roll
+    w = weights(beta, n_theta, n_phi, kind=kind)[:, :-1]
+    return float(wmean(grad[:, :-1], w))
+
+
+def _equal_area_hist(values_2d, n_bins=64):
+    """
+    Accumulate a per-pixel weight map into equal-area (sin latitude by
+    longitude) bins, area weighting each pixel, normalised to a
+    probability array.
+    """
+    n_theta, n_phi = values_2d.shape
+    colat_deg, lon_deg = grid_coordinates(n_theta, n_phi)
+    sin_lat = np.cos(np.radians(colat_deg))          # sin(lat) = cos(colat)
+    area = np.sin(np.radians(colat_deg))
+
+    sin_edges = np.linspace(-1, 1, n_bins + 1)
+    lon_edges = np.linspace(-180.0, 180.0, n_bins + 1)
+    si = np.clip(np.searchsorted(sin_edges, sin_lat, side='right') - 1,
+                 0, n_bins - 1)
+    li = np.clip(np.searchsorted(lon_edges, lon_deg, side='right') - 1,
+                 0, n_bins - 1)
+
+    hist = np.zeros((n_bins, n_bins))
+    for i in range(n_theta):
+        np.add.at(hist[si[i]], li, area[i] * values_2d[i])
+    total = hist.sum()
+    return hist / total if total > 0 else hist
+
+
+def spot_distribution_entropy(surf, threshold=SPOT_THRESHOLD, n_bins=64):
+    """
+    Shannon entropy in nats of the spot pixel positions over the sphere, in
+    equal-area bins. Widely spread spots score high, concentrated ones low,
+    and an immaculate surface returns nan (no spot pixels, no
+    distribution).
+    """
+    p = _equal_area_hist(spot_mask(surf, threshold).astype(float), n_bins)
+    m = p > 0
+    if not m.any():
+        return float('nan')
+    return float(-np.sum(p[m] * np.log(p[m])))
+
+
+def surface_intensity_entropy(surf, n_bins=64):
+    """
+    Shannon entropy in nats of the intensity distribution over the sphere,
+    in equal-area bins. Raises on a negative surface, where the histogram
+    is not a distribution.
+    """
+    if np.any(surf < 0):
+        raise ValueError('surface has negative values; the intensity '
+                         'entropy is not defined')
+    p = _equal_area_hist(np.asarray(surf, dtype=float), n_bins)
+    m = p > 0
+    return float(-np.sum(p[m] * np.log(p[m])))
+
+
+def hist_kl_split(values_p, values_q, split=None, bins=60, eps=1e-12):
+    """
+    KL(P || Q) between two scalar samples on shared bins, decomposed
+    additively into the contributions left and right of a split value
+    (default the median of P), with the Jensen-Shannon divergence
+    alongside. P is the data population and Q the generated one, so the
+    decomposition localises where the generated population misses mass.
+    """
+    p_raw = np.asarray(values_p, dtype=float)
+    p_raw = p_raw[np.isfinite(p_raw)]
+    q_raw = np.asarray(values_q, dtype=float)
+    q_raw = q_raw[np.isfinite(q_raw)]
+
+    lo = min(p_raw.min(), q_raw.min())
+    hi = max(p_raw.max(), q_raw.max())
+    edges = np.linspace(lo, hi, bins + 1)
+    centres = 0.5 * (edges[:-1] + edges[1:])
+
+    p = np.histogram(p_raw, bins=edges)[0].astype(float)
+    q = np.histogram(q_raw, bins=edges)[0].astype(float)
+    p /= p.sum()
+    q /= q.sum()
+
+    ps = p + eps
+    ps /= ps.sum()
+    qs = q + eps
+    qs /= qs.sum()
+
+    integrand = ps * np.log(ps / qs)
+    if split is None:
+        split = float(np.median(p_raw))
+    left = centres < split
+
+    m = 0.5 * (ps + qs)
+    js = 0.5 * np.sum(ps * np.log(ps / m)) + 0.5 * np.sum(qs * np.log(qs / m))
+
+    return {'kl_total': float(integrand.sum()),
+            'kl_left': float(integrand[left].sum()),
+            'kl_right': float(integrand[~left].sum()),
+            'js': float(js), 'split': split,
+            'edges': edges, 'centres': centres, 'p': p, 'q': q}
+
+
+#####################
+# Mode counting     #
+#####################
+
+def count_modes(p, height_frac=0.1, prominence_frac=0.05):
+    """
+    The number of resolved modes of a discrete posterior grid.
+
+    A mode is a peak reaching height_frac of the maximum with a prominence
+    of prominence_frac of the maximum; the grid is padded with -1 so
+    boundary maxima count. The thresholds are the legacy figure's and the
+    draft's fig:beta_bimodality caption states them.
+    """
+    from scipy.signal import find_peaks
+    p = np.asarray(p, dtype=float)
+    pk = float(p.max())
+    padded = np.concatenate([[-1.0], p, [-1.0]])
+    peaks, _ = find_peaks(padded, height=height_frac * pk,
+                          prominence=prominence_frac * pk)
+    return int(len(peaks))
+
 
 #####################
 # Assembly          #
