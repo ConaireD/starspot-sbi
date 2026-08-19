@@ -376,17 +376,20 @@ def main():
         ap.error(f'unknown family {args.family}')
 
     prior_var = load_prior_from_checkpoint(args.vae)
+    # One subdirectory per family: the per-inclination file names carry no
+    # family, so two families sharing one out directory overwrite each other.
+    out_dir = os.path.join(args.out, args.family)
     try:
         summary = analyse(
             os.path.join(args.holdout_results, args.family), args.family,
-            prior_var, args.cache_dir, args.out,
+            prior_var, args.cache_dir, out_dir,
             10.0 ** args.log_sigma_phot, 10.0 ** args.log_sigma_astro,
             args.l_max, args.n_obs, args.n_beta, args.n)
     except FileNotFoundError as e:
         print(e)
         raise SystemExit(1)
     print_summary(summary)
-    print(f'\nwritten to {os.path.abspath(args.out)}')
+    print(f'\nwritten to {os.path.abspath(out_dir)}')
 
 
 if __name__ == '__main__':
