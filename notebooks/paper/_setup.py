@@ -77,8 +77,27 @@ FAMILY_LABELS = {'phot': 'photometry',
                  'phot_ax': 'photometry + x',
                  'phot_ay': 'photometry + y',
                  'phot_axay': 'photometry + x + y'}
-FAMILY_COLOURS = {'phot': '#4c4c4c', 'phot_ax': '#3b7ea1',
-                  'phot_ay': '#c1666b', 'phot_axay': '#2a9d5c'}
+# Okabe and Ito's Color Universal Design set (2008), the eight-colour palette
+# built to stay distinguishable under the common colour vision deficiencies.
+# Figures take their ink from here rather than picking hex by eye.
+OKABE_ITO = {'black': '#000000', 'orange': '#E69F00',
+             'sky blue': '#56B4E9', 'bluish green': '#009E73',
+             'yellow': '#F0E442', 'blue': '#0072B2',
+             'vermillion': '#D55E00', 'reddish purple': '#CC79A7'}
+
+# The four families, mapped onto that palette hue for hue, so prose about the
+# blue or the green curve still reads true. The previous set was a dark grey,
+# #3b7ea1, #c1666b and #2a9d5c, in which phot_ay and phot_axay collapsed onto
+# each other under deuteranopia: their worst-case CIE76 separation over the
+# three dichromacies was 4.1, which is to say indistinguishable. Under this set
+# the worst pair over protanopia and deuteranopia is 37.2. The one soft spot is
+# phot_ax against phot_axay under tritanopia, 17.0; tritanopia is rare and not
+# sex-linked, and the alternative sets that fix it do so by weakening a pair
+# under protanopia instead, which is the far commoner deficiency.
+FAMILY_COLOURS = {'phot': OKABE_ITO['black'],
+                  'phot_ax': OKABE_ITO['blue'],
+                  'phot_ay': OKABE_ITO['vermillion'],
+                  'phot_axay': OKABE_ITO['bluish green']}
 
 #########
 # Paths #
@@ -147,6 +166,38 @@ def load_truth(surface_idx, slot=0):
     consequence of the place_spot fix; see PORT_NOTES.md before comparing them.
     """
     return read_pair(HOLDOUT, load_meta(), int(surface_idx), int(slot))
+
+
+def choose_surface(run, select='index', idx=None, slot=None, seed=SEED,
+                   filters=None, pick='random'):
+    """
+    One row of a run frame, for the figures built around a single star.
+
+    select 'index' returns the row at (idx, slot). 'random' draws one
+    row at seed. 'filtered' first restricts the frame by filters, a dict
+    mapping column names to inclusive (lo, hi) ranges, then applies
+    pick: 'random' draws one surviving row at seed, 'median_ssim'
+    returns the row whose ssim_vis is nearest the surviving rows'
+    median.
+    """
+    if select == 'index':
+        hit = run[(run.idx == int(idx)) & (run.slot == int(slot))]
+        if len(hit) == 0:
+            raise KeyError(f'({idx}, {slot}) is not in the run')
+        return hit.iloc[0]
+    if select not in ('random', 'filtered'):
+        raise ValueError(f'unknown select mode {select!r}')
+    if select == 'filtered':
+        for col, (lo, hi) in (filters or {}).items():
+            run = run[(run[col] >= lo) & (run[col] <= hi)]
+        if len(run) == 0:
+            raise ValueError('no run rows survive the filters')
+        if pick == 'median_ssim':
+            med = run.ssim_vis.median()
+            return run.iloc[(run.ssim_vis - med).abs().argmin()]
+        if pick != 'random':
+            raise ValueError(f'unknown pick mode {pick!r}')
+    return run.sample(1, random_state=seed).iloc[0]
 
 
 @lru_cache(maxsize=8)
@@ -286,7 +337,7 @@ mpl.rcParams.update({
     'figure.constrained_layout.use': True,
 })
 
-SURFACE_CMAP = 'magma'
+SURFACE_CMAP = 'inferno'
 
 
 def save_fig(fig, name, formats=('pdf', 'png')):
