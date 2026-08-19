@@ -226,6 +226,53 @@ def sample_draws(signals, betas_deg, family, vae, stats, est, meta,
 
     return np.concatenate(out, axis=0)
 
+def sample_latents(signals, betas_deg, family, est, meta,
+                   log10_sigma_phot=LOG10_SIGMA_PHOT_MISSION,
+                   log10_sigma_astro=LOG10_SIGMA_ASTRO_MISSION,
+                   n_draws=256, seed=0, batch_size=64, device='cpu',
+                   stored=True):
+    """
+    Posterior latent draws, shape (B, n_draws, latent_dim), float32.
+
+    The draws sample_draws decodes, before the decoder: the noise generator
+    and the sampling seed follow the same per-batch construction, so with the
+    same arguments decode_latents of these reproduces sample_draws' output.
+    Calibration in latent space (SBC, TARP) needs these, since the saved runs
+    keep only the decoded coefficients.
+    """
+    signals = to_model_order(signals, family, stored=stored)
+    betas_deg = np.asarray(betas_deg, dtype=float)
+    n = signals.shape[0]
+    if betas_deg.shape[0] != n:
+        raise ValueError(f"{n} signals against {betas_deg.shape[0]} inclinations")
+    ranges = _context_ranges(meta)
+
+    out = []
+    for lo in range(0, n, batch_size):
+        hi = min(lo + batch_size, n)
+        b = hi - lo
+
+        gen = torch.Generator().manual_seed(seed + lo)
+        ctx = make_context(
+            torch.tensor(signals[lo:hi], dtype=torch.float32),
+            torch.tensor(beta_norm_from_deg(betas_deg[lo:hi]), dtype=torch.float32),
+            torch.full((b,), float(log10_sigma_phot)),
+            torch.full((b,), float(log10_sigma_astro)),
+            meta['ch'], gain_phot=meta['gain_phot'], gain_ast=meta['gain_ast'],
+            gen=gen, **ranges).to(device)
+
+        torch.manual_seed(seed + lo)
+        with torch.no_grad():
+            draws = est.sample((n_draws,), ctx)
+            if tuple(draws.shape[:2]) != (n_draws, b):
+                raise ValueError(
+                    f"estimator returned {tuple(draws.shape)}, expected "
+                    f"({n_draws}, {b}, latent_dim)")
+        out.append(draws.permute(1, 0, 2).float().cpu().numpy())
+
+    return np.concatenate(out, axis=0)
+
+
 def posterior_mean(draws):
     """Mean over the draw axis, (B, n_draws, n_coeffs) to (B, n_coeffs)."""
     return np.asarray(draws).mean(axis=1)
@@ -246,12 +293,50 @@ def reconstruct(signals, betas_deg, family, vae, stats, est, meta,
 # Other estimates   #
 #####################
 
-def decode_ceiling(coeffs, vae, stats, n_theta=N_THETA, n_phi=N_PHI,
-                   batch_size=128, device='cpu'):
+def encode_latents(coeffs, vae, stats, batch_size=128, device='cpu'):
     """
-    Encode each true surface, decode the encoder mean, render. The best any flow
-    trained on this auto-encoder can reach, so it separates compression error
-    from inference error. coeffs is (B, (L+1)^2) complex, as stored.
+    Encoder posterior for each true surface: (mu, sigma), each of shape
+    (B, latent_dim), float32. coeffs is (B, (L+1)^2) complex, as stored.
+
+    A draw from the aggregate encoded distribution is mu + sigma * eps over a
+    surface sample, which is how the VAE-as-prior figures sample it.
+    """
+    coeffs = np.asarray(coeffs)
+    mus, sigmas = [], []
+    for lo in range(0, coeffs.shape[0], batch_size):
+        block = coeffs[lo:lo + batch_size]
+        packed = _strip_dc(np.stack([coeffs_to_real(c) for c in block]), stats)
+        normed = (packed - stats['mu_data']) / stats['std_data']
+        with torch.no_grad():
+            h = vae.encoder(torch.tensor(normed, dtype=torch.float32).to(device))
+            _, mu, log_var = vae.latent(h)
+        mus.append(mu.cpu().numpy())
+        sigmas.append(np.exp(0.5 * log_var.cpu().numpy()))
+    return (np.concatenate(mus, axis=0).astype(np.float32),
+            np.concatenate(sigmas, axis=0).astype(np.float32))
+
+
+def decode_latents(z, vae, stats, batch_size=512, device='cpu'):
+    """
+    Decode latent vectors to real-packed coefficient vectors, shape
+    (B, (L+1)^2), un-standardised, float32.
+    """
+    z = np.asarray(z, dtype=np.float32)
+    out = []
+    for lo in range(0, z.shape[0], batch_size):
+        with torch.no_grad():
+            vecs = vae.decoder(
+                torch.tensor(z[lo:lo + batch_size]).to(device)).cpu().numpy()
+        raw = vecs * stats['std_data'] + stats['mu_data']
+        out.append(_reinstate_dc(raw, stats))
+    return np.concatenate(out, axis=0)
+
+
+def decode_ceiling_coeffs(coeffs, vae, stats, batch_size=128, device='cpu'):
+    """
+    The decoded encoder mean per true surface, real-packed, (B, (L+1)^2).
+    The coefficient-space form of decode_ceiling, for spectral and
+    coefficient-error figures.
     """
     coeffs = np.asarray(coeffs)
     out = []
@@ -265,8 +350,20 @@ def decode_ceiling(coeffs, vae, stats, n_theta=N_THETA, n_phi=N_PHI,
             vecs = vae.decoder(mu).cpu().numpy()
         raw = vecs * stats['std_data'] + stats['mu_data']
         out.append(_reinstate_dc(raw, stats))
-    return render_draws(np.concatenate(out, axis=0), n_theta, n_phi,
-                        device=device)
+    return np.concatenate(out, axis=0)
+
+
+def decode_ceiling(coeffs, vae, stats, n_theta=N_THETA, n_phi=N_PHI,
+                   batch_size=128, device='cpu'):
+    """
+    Encode each true surface, decode the encoder mean, render. The best any flow
+    trained on this auto-encoder can reach, so it separates compression error
+    from inference error. coeffs is (B, (L+1)^2) complex, as stored.
+    """
+    return render_draws(
+        decode_ceiling_coeffs(coeffs, vae, stats, batch_size=batch_size,
+                              device=device),
+        n_theta, n_phi, device=device)
 
 
 def classify_beta(signals, family, clf, meta,

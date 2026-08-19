@@ -18,6 +18,7 @@ import os
 import sys
 import shutil
 from pathlib import Path
+import json
 
 import numpy as np
 import pandas as pd
@@ -547,3 +548,305 @@ def test_ssim_depends_on_the_render_grid_and_rmse_does_not():
           f'({rel_rmse:.2%} relative)')
     assert d_ssim > 5e-3
     assert rel_rmse < 0.10
+
+
+############################
+# The manifest             #
+############################
+
+def test_main_writes_a_manifest_that_names_every_knob(holdout, tmp_path,
+                                                      monkeypatch):
+    """
+    The manifest is the only record of what a results directory was produced
+    with. Every argument that changes a number must appear in it: the draw
+    count, the batch size, the seed, the noise point and the checkpoint
+    suffix. The batch size belongs there because the noise realisation depends
+    on it, which test_12_pipeline asserts directly.
+    """
+    import run_holdout as rh
+
+    n_coeffs_L = (L + 1) ** 2
+    monkeypatch.setattr(rh, 'load_vae', lambda *a, **k: (None, None, None))
+    monkeypatch.setattr(rh, 'load_flow', lambda *a, **k: (None, {'ch': [0, 1, 2]}))
+    monkeypatch.setattr(
+        rh, 'sample_draws',
+        lambda signals, betas, *a, **k: np.zeros(
+            (len(signals), k.get('n_draws', 8), n_coeffs_L), dtype=np.float32))
+    monkeypatch.setattr(
+        rh, 'render_draws',
+        lambda v, *a, **k: np.ones((np.atleast_2d(v).shape[0], N_THETA, N_PHI)))
+
+    out = tmp_path / 'results'
+    monkeypatch.setattr(sys, 'argv', [
+        'run_holdout.py', '--family', 'all', '--holdout', holdout,
+        '--out', str(out), '--n', str(N_SURF), '--draws', '8', '--batch', '4',
+        '--seed', '3', '--device', 'cpu'])
+    rh.main()
+
+    with open(out / 'manifest.json') as f:
+        m = json.load(f)
+    print(f'manifest keys {sorted(m)}')
+
+    for key in ('n_pairs', 'families', 'draws', 'batch', 'seed', 'saved_draws',
+                'saved_spectra', 'log10_sigma_phot', 'log10_sigma_astro',
+                'pairs_source', 'weights_suffix', 'elapsed_s'):
+        assert key in m, key
+    assert m['n_pairs'] == N_SURF
+    assert m['families'] == list(rh.FAMILIES)
+    assert m['draws'] == 8
+    assert m['batch'] == 4
+    assert m['seed'] == 3
+    assert m['log10_sigma_phot'] == -4.0
+    assert m['log10_sigma_astro'] == -3.5
+    assert set(m['elapsed_s']) == set(rh.FAMILIES)
+
+
+def test_the_manifest_records_a_pairs_file_as_its_source(holdout, tmp_path,
+                                                         monkeypatch):
+    """Two runs are paired only if they used the same pairs, so the manifest
+    has to say which."""
+    import run_holdout as rh
+
+    p = tmp_path / 'pairs.csv'
+    pd.DataFrame({'idx': [1, 4], 'slot': [0, 2]}).to_csv(p, index=False)
+
+    monkeypatch.setattr(rh, 'load_vae', lambda *a, **k: (None, None, None))
+    monkeypatch.setattr(rh, 'load_flow', lambda *a, **k: (None, {'ch': [0, 1, 2]}))
+    monkeypatch.setattr(
+        rh, 'sample_draws',
+        lambda signals, betas, *a, **k: np.zeros(
+            (len(signals), 8, (L + 1) ** 2), dtype=np.float32))
+    monkeypatch.setattr(
+        rh, 'render_draws',
+        lambda v, *a, **k: np.ones((np.atleast_2d(v).shape[0], N_THETA, N_PHI)))
+
+    out = tmp_path / 'results'
+    monkeypatch.setattr(sys, 'argv', [
+        'run_holdout.py', '--family', 'phot', '--holdout', holdout,
+        '--out', str(out), '--pairs', str(p), '--draws', '8', '--device', 'cpu'])
+    rh.main()
+
+    with open(out / 'manifest.json') as f:
+        m = json.load(f)
+    assert m['pairs_source'] == str(p)
+    assert m['n_pairs'] == 2
+
+
+############################
+# Seeding across chunks    #
+############################
+
+def test_chunk_seeds_never_collide_at_any_batch_size():
+    """
+    A chunk is sampled at seed + c * CHUNK, and sample_draws offsets again by
+    the row position within the chunk. Those offsets stay below CHUNK, so no
+    two chunks reach the same generator seed whatever the batch size, and a
+    resumed chunk reproduces itself.
+    """
+    import run_holdout as rh
+
+    for batch in (1, 4, 16, 64, 128):
+        seen = set()
+        for c in range(40):
+            for lo in range(0, rh.CHUNK, min(batch, rh.CHUNK)):
+                s = c * rh.CHUNK + lo
+                assert s not in seen, f'batch {batch}, chunk {c}, offset {lo}'
+                seen.add(s)
+        print(f'batch {batch}: {len(seen)} distinct seeds over 40 chunks')
+
+
+############################
+# Saved draws and spectra  #
+############################
+
+def _stub_family(monkeypatch, rh, draws_fn):
+    monkeypatch.setattr(rh, 'load_vae', lambda *a, **k: (None, None, None))
+    monkeypatch.setattr(rh, 'load_flow', lambda *a, **k: (None, {'ch': [0, 1, 2]}))
+    monkeypatch.setattr(rh, 'sample_draws', draws_fn)
+    monkeypatch.setattr(
+        rh, 'render_draws',
+        lambda v, *a, **k: np.ones((np.atleast_2d(v).shape[0], N_THETA, N_PHI)))
+    import argparse
+    return argparse.Namespace(draws=8, batch=4, seed=0, save_draws=True,
+                              spectra=True, log_sigma_phot=-4.0,
+                              log_sigma_astro=-3.5, device='cpu')
+
+
+def test_saved_draws_are_one_file_per_chunk_in_the_row_order_of_its_csv(
+        holdout, tmp_path, monkeypatch):
+    """
+    A figure reading the saved draws indexes them by position within the chunk,
+    so row k of chunk_00000.csv must be draw block k of chunk_00000.npy. The
+    stub returns a block whose value is its position, which makes the pairing
+    readable off the file.
+    """
+    import run_holdout as rh
+
+    n_coeffs_L = (L + 1) ** 2
+
+    def positional(signals, betas, *a, **k):
+        n = len(signals)
+        v = np.arange(n, dtype=np.float32).reshape(n, 1, 1)
+        return np.broadcast_to(v, (n, k.get('n_draws', 8), n_coeffs_L)).copy()
+
+    args = _stub_family(monkeypatch, rh, positional)
+    pairs, meta = load_holdout_index(holdout, n=N_SURF, seed=0)
+
+    original_chunk = rh.CHUNK
+    rh.CHUNK = 4                       # two chunks from six pairs
+    try:
+        out = str(tmp_path / 'results')
+        rh.run_family('phot_axay', pairs, meta, holdout, str(WEIGHTS), out, args)
+        fam = os.path.join(out, 'phot_axay')
+
+        for c, name in enumerate(sorted(f for f in os.listdir(fam)
+                                        if f.startswith('chunk_'))):
+            rows = pd.read_csv(os.path.join(fam, name))
+            block = np.load(os.path.join(fam, 'draws', f'chunk_{c:05d}.npy'))
+            print(f'chunk {c}: {len(rows)} rows, draws {block.shape}')
+            assert block.shape == (len(rows), args.draws, n_coeffs_L)
+            assert block.dtype == np.float32
+            for k in range(len(rows)):
+                assert np.all(block[k] == k), 'draw block k is not row k'
+    finally:
+        rh.CHUNK = original_chunk
+
+
+def test_saved_spectra_carry_one_row_per_surface(holdout, tmp_path, monkeypatch):
+    """The mean power spectrum per surface, one degree per column."""
+    import run_holdout as rh
+
+    args = _stub_family(
+        monkeypatch, rh,
+        lambda signals, betas, *a, **k: np.zeros(
+            (len(signals), 8, (L + 1) ** 2), dtype=np.float32))
+    pairs, meta = load_holdout_index(holdout, n=N_SURF, seed=0)
+
+    out = str(tmp_path / 'results')
+    rh.run_family('phot_axay', pairs, meta, holdout, str(WEIGHTS), out, args)
+    spec = np.load(os.path.join(out, 'phot_axay', 'spectra', 'chunk_00000.npy'))
+    print(f'spectra {spec.shape}')
+    assert spec.shape == (N_SURF, L + 1)
+
+
+def test_nothing_is_written_for_draws_or_spectra_when_not_asked(
+        holdout, tmp_path, monkeypatch):
+    import run_holdout as rh
+
+    args = _stub_family(
+        monkeypatch, rh,
+        lambda signals, betas, *a, **k: np.zeros(
+            (len(signals), 8, (L + 1) ** 2), dtype=np.float32))
+    args.save_draws = False
+    args.spectra = False
+    pairs, meta = load_holdout_index(holdout, n=N_SURF, seed=0)
+
+    out = str(tmp_path / 'results')
+    rh.run_family('phot_axay', pairs, meta, holdout, str(WEIGHTS), out, args)
+    fam = os.path.join(out, 'phot_axay')
+    assert os.listdir(os.path.join(fam, 'draws')) == []
+    assert os.listdir(os.path.join(fam, 'spectra')) == []
+
+
+############################
+# The combined file name   #
+############################
+
+def test_the_combined_file_name_carries_the_noise_point(holdout, tmp_path,
+                                                        monkeypatch):
+    """
+    Two runs at different noise points write into one directory, so the noise
+    point is in the file name rather than only in the manifest.
+    """
+    import run_holdout as rh
+
+    args = _stub_family(
+        monkeypatch, rh,
+        lambda signals, betas, *a, **k: np.zeros(
+            (len(signals), 8, (L + 1) ** 2), dtype=np.float32))
+    args.save_draws = False
+    args.spectra = False
+    args.log_sigma_astro = -6.0
+    pairs, meta = load_holdout_index(holdout, n=N_SURF, seed=0)
+
+    out = str(tmp_path / 'results')
+    rh.run_family('phot', pairs, meta, holdout, str(WEIGHTS), out, args)
+    assert os.path.exists(os.path.join(out, 'full_phot_lp-4.0_la-6.0.csv'))
+
+
+############################
+# Metadata tolerance       #
+############################
+
+def _index(holdout):
+    meta = pd.read_csv(os.path.join(holdout, 'metadata.csv'))
+    return meta.drop_duplicates('surface_idx', keep='first').set_index('surface_idx')
+
+
+def test_read_pair_falls_back_to_the_conventional_file_names(holdout):
+    """
+    An older generation of the dataset carries no file-name columns, and the
+    generator's own convention supplies them.
+    """
+    meta = _index(holdout)
+    lean = meta.drop(columns=['surface_file', 'signal_file'])
+    a = read_pair(holdout, meta, 3, 1)
+    b = read_pair(holdout, lean, 3, 1)
+    assert np.array_equal(a[0], b[0])
+    assert np.array_equal(a[1], b[1])
+    assert a[2] == b[2]
+
+
+def test_read_pair_accepts_comma_separated_inclinations(holdout):
+    meta = _index(holdout)
+    other = meta.copy()
+    other['betas_deg'] = other['betas_deg'].str.replace(';', ',')
+    assert read_pair(holdout, meta, 2, 0)[2] == read_pair(holdout, other, 2, 0)[2]
+
+
+def test_read_pair_reports_an_unknown_spot_count_as_minus_one(holdout):
+    """A dataset without the column must not silently report zero spots, which
+    a metric would treat as an empty surface."""
+    meta = _index(holdout)
+    lean = meta.drop(columns=['n_spots'])
+    assert read_pair(holdout, lean, 1, 0)[3] == -1
+
+
+def test_the_index_takes_what_is_available_when_n_exceeds_the_holdout(holdout):
+    pairs, meta = load_holdout_index(holdout, n=10 * N_SURF, seed=0)
+    assert len(pairs) == N_SURF
+
+
+def test_the_slot_count_comes_from_the_metadata(holdout):
+    """
+    Slots are drawn against the first row's n_inc, so a holdout whose surfaces
+    carry different inclination counts would index past the end of a signal
+    array. The released dataset is uniform; this pins the assumption.
+    """
+    meta = _index(holdout)
+    assert meta['n_inc'].nunique() == 1
+    assert int(meta.iloc[0]['n_inc']) == N_INC
+
+
+############################
+# Scoring                  #
+############################
+
+def test_score_rejects_a_grid_mismatch():
+    """SSIM compares a fixed pixel window, so two grids cannot be compared."""
+    rng = np.random.default_rng(4)
+    with pytest.raises(ValueError):
+        score(rng.random((60, 120)), rng.random((120, 240)), 45.0)
+
+
+def test_the_error_uncertainty_correlation_needs_the_spread(holdout):
+    """
+    Passing the draws without their standard deviation leaves err_unc nan
+    rather than dropping the column, so the schema is the same either way.
+    """
+    rng = np.random.default_rng(5)
+    truth = 1.0 - 0.2 * rng.random((60, 120))
+    samples = truth[None] + 0.01 * rng.normal(size=(8,) + truth.shape)
+    out = score(truth, truth, 30.0, samples=samples)
+    assert np.isfinite(out['crps'])
+    assert np.isnan(out['err_unc'])
