@@ -310,7 +310,7 @@ def main():
           f'({args.log_sigma_phot}, {args.log_sigma_astro})')
 
     manifest = {'n_pairs': len(pairs), 'families': families,
-                'draws': args.draws, 'seed': args.seed,
+                'draws': args.draws, 'seed': args.seed, 'batch': args.batch,
                 'saved_draws': bool(args.save_draws),
                 'saved_spectra': bool(args.spectra),
                 'log10_sigma_phot': args.log_sigma_phot,
