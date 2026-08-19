@@ -33,7 +33,9 @@ from starspot_sbi.pipeline import (STORED_TO_MODEL,
                                    LOG10_SIGMA_ASTRO_MISSION,
                                    select_channels, to_model_order,
                                    render_draws, power_spectrum, sample_draws,
-                                   posterior_mean, reconstruct, decode_ceiling)
+                                   sample_latents, posterior_mean, reconstruct,
+                                   encode_latents, decode_latents,
+                                   decode_ceiling, decode_ceiling_coeffs)
 
 WEIGHTS = Path(__file__).resolve().parent.parent / 'weights'
 SUFFIX = '_temp'                 # marks the checkpoints as pending verification
@@ -626,3 +628,283 @@ def test_the_full_resolution_render_has_the_grid_the_module_declares():
     img = render_draws(posterior_mean(draws))
     assert img.shape == (1, N_THETA, N_PHI)
     assert np.isfinite(img).all()
+
+
+############################
+# Latent stubs             #
+############################
+
+class LatentStubVAE(StubVAE):
+    """
+    A stub whose latent head reports a spread as well as a mean, since
+    encode_latents reads the log variance the base stub leaves out.
+    """
+
+    LOG_VAR = -2.0                   # sigma = exp(-1)
+
+    def latent(self, h):
+        mu = h[:, :self.latent_dim]
+        return None, mu, torch.full_like(mu, self.LOG_VAR)
+
+
+############################
+# Latent sampling          #
+############################
+
+def test_sample_latents_shape_and_dtype():
+    B, n_draws = 3, 5
+    lat = sample_latents(make_signals(B, 2), np.full(B, 45.0), 'phot_ax',
+                         StubEstimator(), make_meta('phot_ax'),
+                         n_draws=n_draws, batch_size=2, stored=False)
+    assert lat.shape == (B, n_draws, LATENT_DIM)
+    assert lat.dtype == np.float32
+
+
+def test_decoding_the_latents_reproduces_the_coefficient_draws():
+    """
+    The claim sample_latents' docstring makes. Both build the context from the
+    same generator seed and sample at the same global seed, so decoding one
+    gives the other exactly.
+    """
+    B, n_draws = 3, 5
+    args = (make_signals(B, 2), np.full(B, 45.0), 'phot_ax')
+    stats = make_stats(N_COEFFS)
+    meta = make_meta('phot_ax')
+    vae = StubVAE(N_COEFFS)
+
+    lat = sample_latents(*args, StubEstimator(mode='index'), meta,
+                         n_draws=n_draws, seed=5, batch_size=2, stored=False)
+    dec = decode_latents(lat.reshape(-1, LATENT_DIM), vae, stats)
+    dec = dec.reshape(B, n_draws, N_COEFFS)
+
+    drw = sample_draws(*args, vae, stats, StubEstimator(mode='index'), meta,
+                       n_draws=n_draws, seed=5, batch_size=2, stored=False)
+    err = np.max(np.abs(dec - drw))
+    print(f"max difference {err:.3e}")
+    assert err == 0.0
+
+
+def test_sample_latents_uses_the_same_context_as_sample_draws():
+    """
+    The two must agree when the noise realisation enters the draws, which the
+    index stub does not exercise.
+    """
+    B, n_draws = 4, 3
+    args = (make_signals(B, 1), np.linspace(10, 80, B), 'phot')
+    stats = make_stats(N_COEFFS)
+    meta = make_meta('phot')
+    vae = StubVAE(N_COEFFS)
+
+    lat = sample_latents(*args, StubEstimator(mode='ctx'), meta,
+                         n_draws=n_draws, seed=2, batch_size=3, stored=False)
+    dec = decode_latents(lat.reshape(-1, LATENT_DIM), vae, stats)
+    drw = sample_draws(*args, vae, stats, StubEstimator(mode='ctx'), meta,
+                       n_draws=n_draws, seed=2, batch_size=3, stored=False)
+    assert np.array_equal(dec.reshape(B, n_draws, N_COEFFS), drw)
+
+
+def test_sample_latents_rejects_a_transposed_estimator_return():
+    with pytest.raises(ValueError):
+        sample_latents(make_signals(3, 1), np.full(3, 30.0), 'phot',
+                       StubEstimator(mode='index', batch_first=True),
+                       make_meta('phot'), n_draws=5, stored=False)
+
+
+def test_sample_latents_rejects_an_inclination_count_mismatch():
+    with pytest.raises(ValueError):
+        sample_latents(make_signals(4, 1), np.full(3, 45.0), 'phot',
+                       StubEstimator(), make_meta('phot'), n_draws=2,
+                       stored=False)
+
+
+@pytest.mark.parametrize('family', ['phot', 'phot_ax', 'phot_ay', 'phot_axay'])
+def test_sample_latents_permutes_a_stored_signal(family):
+    """The same channel handling as sample_draws, for every family."""
+    B = 3
+    stored = make_stored_signals(B, seed=9)
+    meta = make_meta(family)
+    a = sample_latents(stored, np.full(B, 45.0), family, StubEstimator(), meta,
+                       n_draws=3, seed=0, stored=True)
+    b = sample_latents(select_channels(stored, family), np.full(B, 45.0),
+                       family, StubEstimator(), meta, n_draws=3, seed=0,
+                       stored=False)
+    assert np.array_equal(a, b)
+
+
+############################
+# Decoding latents         #
+############################
+
+def test_decode_latents_inverts_the_standardisation():
+    """A zero latent decodes to the training mean over the leading entries."""
+    stats = make_stats(N_COEFFS)
+    out = decode_latents(np.zeros((4, LATENT_DIM)), StubVAE(N_COEFFS), stats)
+    err = np.max(np.abs(out - stats['mu_data']))
+    print(f"max error {err:.3e}")
+    assert out.shape == (4, N_COEFFS)
+    assert out.dtype == np.float32
+    assert err < 1e-5
+
+
+def test_decode_latents_does_not_depend_on_its_batch_size():
+    """
+    Nothing random happens here, unlike sample_draws, so the batching is free
+    to change without moving a number.
+    """
+    rng = np.random.default_rng(3)
+    z = rng.normal(size=(7, LATENT_DIM))
+    args = (StubVAE(N_COEFFS), make_stats(N_COEFFS))
+    a = decode_latents(z, *args, batch_size=2)
+    b = decode_latents(z, *args, batch_size=512)
+    assert np.array_equal(a, b)
+
+
+def test_decode_latents_reinstates_a_missing_dc():
+    stats = make_stats(N_COEFFS - 1, include_dc=False, dc_value=3.5449077)
+    out = decode_latents(np.zeros((2, LATENT_DIM)), StubVAE(N_COEFFS - 1), stats)
+    assert out.shape == (2, N_COEFFS)
+    assert np.allclose(out[:, 0], stats['dc_value'])
+
+
+############################
+# Encoding                 #
+############################
+
+def test_encode_latents_returns_a_mean_and_a_spread():
+    B = 4
+    rng = np.random.default_rng(4)
+    v = rng.normal(size=(B, N_COEFFS))
+    coeffs = np.stack([real_to_coeffs(u) for u in v])
+    stats = make_stats(N_COEFFS)
+
+    mu, sigma = encode_latents(coeffs, LatentStubVAE(N_COEFFS), stats)
+    want = ((v - stats['mu_data']) / stats['std_data'])[:, :LATENT_DIM]
+    err = np.max(np.abs(mu - want))
+    print(f"mean error {err:.3e}, sigma {sigma[0, 0]:.6f}")
+    assert mu.shape == sigma.shape == (B, LATENT_DIM)
+    assert mu.dtype == sigma.dtype == np.float32
+    assert err < 1e-4
+    assert np.allclose(sigma, np.exp(0.5 * LatentStubVAE.LOG_VAR), rtol=1e-6)
+
+
+def test_encode_latents_reports_a_positive_spread():
+    """sigma is exp(log_var / 2), so it cannot be zero or negative whatever the
+    encoder returns."""
+    rng = np.random.default_rng(5)
+    coeffs = np.stack([real_to_coeffs(u)
+                       for u in rng.normal(size=(3, N_COEFFS))])
+    _, sigma = encode_latents(coeffs, LatentStubVAE(N_COEFFS),
+                              make_stats(N_COEFFS))
+    assert np.all(sigma > 0)
+
+
+def test_encode_latents_does_not_depend_on_its_batch_size():
+    rng = np.random.default_rng(6)
+    coeffs = np.stack([real_to_coeffs(u)
+                       for u in rng.normal(size=(5, N_COEFFS))])
+    args = (LatentStubVAE(N_COEFFS), make_stats(N_COEFFS))
+    a = encode_latents(coeffs, *args, batch_size=2)
+    b = encode_latents(coeffs, *args, batch_size=128)
+    assert np.array_equal(a[0], b[0])
+    assert np.array_equal(a[1], b[1])
+
+
+############################
+# The ceiling in both forms#
+############################
+
+def test_decode_ceiling_renders_decode_ceiling_coeffs():
+    """
+    The delegation the refactor rests on: the rendered form is the coefficient
+    form put through render_draws and nothing else.
+    """
+    B = 3
+    rng = np.random.default_rng(7)
+    coeffs = np.stack([real_to_coeffs(u)
+                       for u in rng.normal(size=(B, N_COEFFS))])
+    args = (StubVAE(N_COEFFS), make_stats(N_COEFFS))
+    vecs = decode_ceiling_coeffs(coeffs, *args)
+    direct = render_draws(vecs, N_THETA_SMALL, N_PHI_SMALL)
+    via = decode_ceiling(coeffs, *args, n_theta=N_THETA_SMALL,
+                         n_phi=N_PHI_SMALL)
+    assert vecs.shape == (B, N_COEFFS)
+    assert vecs.dtype == np.float32
+    assert np.array_equal(direct, via)
+
+
+def test_decode_ceiling_coeffs_does_not_depend_on_its_batch_size():
+    rng = np.random.default_rng(8)
+    coeffs = np.stack([real_to_coeffs(u)
+                       for u in rng.normal(size=(5, N_COEFFS))])
+    args = (StubVAE(N_COEFFS), make_stats(N_COEFFS))
+    assert np.array_equal(decode_ceiling_coeffs(coeffs, *args, batch_size=2),
+                          decode_ceiling_coeffs(coeffs, *args, batch_size=128))
+
+
+def test_decode_ceiling_coeffs_reinstates_a_missing_dc():
+    rng = np.random.default_rng(9)
+    coeffs = np.stack([real_to_coeffs(u)
+                       for u in rng.normal(size=(2, N_COEFFS))])
+    stats = make_stats(N_COEFFS - 1, include_dc=False, dc_value=3.5449077)
+    out = decode_ceiling_coeffs(coeffs, StubVAE(N_COEFFS - 1), stats)
+    assert out.shape == (2, N_COEFFS)
+    assert np.allclose(out[:, 0], stats['dc_value'])
+
+
+############################
+# Released checkpoints     #
+############################
+
+@needs_weights
+def test_the_released_latents_decode_to_the_released_draws():
+    """
+    The round trip through the real flow and the real decoder, which is what
+    the calibration figures rely on when they sample in latent space and
+    compare against coefficient-space results.
+    """
+    vae, _, stats = load_vae(WEIGHTS / f'vae_n640000_seed101{SUFFIX}.pt')
+    est, meta = load_flow(WEIGHTS / f'flow_phot_axay{SUFFIX}.pt',
+                          latent_dim=LATENT_DIM)
+    B, n_draws = 2, 8
+    sig, betas = make_stored_signals(B, meta['T']), np.array([20.0, 65.0])
+
+    lat = sample_latents(sig, betas, 'phot_axay', est, meta, n_draws=n_draws,
+                         seed=0, batch_size=2)
+    dec = decode_latents(lat.reshape(-1, LATENT_DIM), vae, stats)
+    drw = sample_draws(sig, betas, 'phot_axay', vae, stats, est, meta,
+                       n_draws=n_draws, seed=0, batch_size=2)
+    err = np.max(np.abs(dec.reshape(B, n_draws, -1) - drw))
+    print(f"latents {lat.shape}, max difference {err:.3e}")
+    assert lat.shape == (B, n_draws, LATENT_DIM)
+    assert err == 0.0
+
+
+@needs_weights
+def test_the_released_encoder_reports_a_plausible_posterior():
+    """
+    A trained encoder's spread sits below the unit prior it was regularised
+    toward, and its means are not all zero.
+    """
+    vae, _, stats = load_vae(WEIGHTS / f'vae_n640000_seed101{SUFFIX}.pt')
+    rng = np.random.default_rng(10)
+    coeffs = np.stack([real_to_coeffs(u)
+                       for u in rng.normal(scale=0.01, size=(4, N_COEFFS))])
+    mu, sigma = encode_latents(coeffs, vae, stats)
+    print(f"mu range {mu.min():.3f} to {mu.max():.3f}, "
+          f"sigma range {sigma.min():.4f} to {sigma.max():.4f}")
+    assert mu.shape == sigma.shape == (4, LATENT_DIM)
+    assert np.isfinite(mu).all() and np.isfinite(sigma).all()
+    assert np.all(sigma > 0)
+    assert np.any(np.abs(mu) > 1e-3)
+
+
+@needs_weights
+def test_the_released_ceiling_gives_one_coefficient_vector_per_surface():
+    vae, _, stats = load_vae(WEIGHTS / f'vae_n640000_seed101{SUFFIX}.pt')
+    rng = np.random.default_rng(11)
+    coeffs = np.stack([real_to_coeffs(u)
+                       for u in rng.normal(scale=0.01, size=(3, N_COEFFS))])
+    vecs = decode_ceiling_coeffs(coeffs, vae, stats)
+    print(f"coefficients {vecs.shape}, DC {vecs[:, 0]}")
+    assert vecs.shape == (3, N_COEFFS)
+    assert np.isfinite(vecs).all()
