@@ -375,13 +375,22 @@ SURFACE_CMAP = 'inferno'
 # is its area on the star; Aitoff is a compromise projection, neither equal
 # area nor conformal.
 #
+# Hammer, because this paper's numbers are area-based: SSIM is area-adjusted,
+# PR-AUC runs over spot masks, and Section 7.5 quotes an area-fraction slope.
+# Aitoff was used first and looks slightly better at the limb, but it inflates
+# area there by up to 57 per cent, which reads oddly beside those statistics.
+# Hammer is the equal-area analogue of Aitoff and differs from it by at most
+# 4.2 per cent of the map half-width, so it keeps that appearance and drops the
+# area error. Mollweide is equal area too but departs from Aitoff by 18 per
+# cent, a visible change of shape.
+#
 # UP picks which pole is at the top. 'north' is the cartographic convention;
 # 'south' puts the always-visible pole up instead -- the hidden cap is the
 # northern one, so under 'south' the hemisphere the observer actually sees
 # faces up and the cap shading sinks to the bottom. Everything latitude-signed
 # reads LAT_SIGN, so the maps, the cap line and the cap shading all turn over
 # together.
-PROJ = 'aitoff'             # 'mollweide' | 'hammer' | 'aitoff' | 'rect'
+PROJ = 'hammer'             # 'mollweide' | 'hammer' | 'aitoff' | 'rect'
 BOUNDARY = 'rect' if PROJ == 'rect' else 'ellipse'
 UP = 'south'                # 'north' | 'south'
 LAT_SIGN = 1 if UP == 'north' else -1
