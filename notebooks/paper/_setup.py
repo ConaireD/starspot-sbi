@@ -99,6 +99,24 @@ FAMILY_COLOURS = {'phot': OKABE_ITO['black'],
                   'phot_ay': OKABE_ITO['vermillion'],
                   'phot_axay': OKABE_ITO['bluish green']}
 
+# Single-hue ink for figures that are not family comparisons: blue is the
+# working/posterior colour, vermillion the truth or reference, orange the
+# conditional-statistic overlay on a blue density, green a second family-free
+# series. All from the palette above; GRAY is neutral annotation ink.
+BLUE = OKABE_ITO['blue']
+RED = OKABE_ITO['vermillion']
+ORANGE = OKABE_ITO['orange']
+GREEN = OKABE_ITO['bluish green']
+GRAY = '#808080'
+
+# Lines that never name a colour take these, in this order, so a default-cycle
+# plot is palette ink too. Yellow is left out: at L* 92 it is illegible as a
+# thin line on white paper.
+mpl.rcParams['axes.prop_cycle'] = mpl.cycler(color=[
+    OKABE_ITO['blue'], OKABE_ITO['vermillion'], OKABE_ITO['bluish green'],
+    OKABE_ITO['orange'], OKABE_ITO['reddish purple'],
+    OKABE_ITO['sky blue'], OKABE_ITO['black']])
+
 #########
 # Paths #
 #########
@@ -321,12 +339,19 @@ mpl.rcParams.update({
     'savefig.dpi': 300,
     'savefig.bbox': 'tight',
     'font.family': 'serif',
-    'font.size': 8,
-    'axes.labelsize': 8,
-    'axes.titlesize': 8,
-    'legend.fontsize': 7,
-    'xtick.labelsize': 7,
-    'ytick.labelsize': 7,
+    'font.serif': ['STIX Two Text', 'STIXGeneral', 'Times New Roman',
+                   'DejaVu Serif'],
+    'mathtext.fontset': 'stix',
+    # MNRAS asks that no lettering in a figure be smaller than the body text,
+    # which is 9 pt. Figures are drawn at COL or WIDE and included at that
+    # width, so nothing is scaled down in the .tex: 9 pt here is 9 pt on the
+    # page. Everything, ticks and legends included, sits at that floor.
+    'font.size': 9,
+    'axes.labelsize': 9,
+    'axes.titlesize': 9,
+    'legend.fontsize': 9,
+    'xtick.labelsize': 9,
+    'ytick.labelsize': 9,
     'axes.linewidth': 0.6,
     'xtick.direction': 'in',
     'ytick.direction': 'in',
@@ -338,6 +363,77 @@ mpl.rcParams.update({
 })
 
 SURFACE_CMAP = 'inferno'
+
+###############################
+# Map projection and up-pole  #
+###############################
+
+# One toggle pair for every sky map in the figures. 'mollweide', 'hammer' and
+# 'aitoff' are matplotlib's geographic axes and share an elliptical boundary;
+# 'rect' is a plain equirectangular axes in radians, with a rectangular
+# boundary. Mollweide and Hammer are equal area, so a spot's area on the page
+# is its area on the star; Aitoff is a compromise projection, neither equal
+# area nor conformal.
+#
+# UP picks which pole is at the top. 'north' is the cartographic convention;
+# 'south' puts the always-visible pole up instead -- the hidden cap is the
+# northern one, so under 'south' the hemisphere the observer actually sees
+# faces up and the cap shading sinks to the bottom. Everything latitude-signed
+# reads LAT_SIGN, so the maps, the cap line and the cap shading all turn over
+# together.
+PROJ = 'aitoff'             # 'mollweide' | 'hammer' | 'aitoff' | 'rect'
+BOUNDARY = 'rect' if PROJ == 'rect' else 'ellipse'
+UP = 'south'                # 'north' | 'south'
+LAT_SIGN = 1 if UP == 'north' else -1
+
+# subplot_kw for plt.subplots / add_subplot when making a map axes
+MAP_KW = {} if PROJ == 'rect' else {'projection': PROJ}
+
+# pcolormesh cell edges for a render-grid image, honouring UP
+MAP_LON_E = np.radians(np.linspace(-180.0, 180.0, N_PHI + 1))
+MAP_LAT_E = LAT_SIGN * np.radians(np.linspace(90.0, -90.0, N_THETA + 1))
+_MAP_LON_LINE = np.linspace(-np.pi, np.pi, 400)
+
+
+def draw_map(a, img, cmap=None, vmin=None, vmax=None):
+    """
+    One render-grid image onto a map axes made with MAP_KW, in whichever
+    projection and orientation the toggles name. imshow cannot draw on a
+    geographic axes, so the image goes down as a pcolormesh over the cell
+    edges; data coordinates are (lon, lat) in radians in every branch, so
+    anything drawn on top is written once. Returns the mesh, for colorbars.
+    """
+    if PROJ == 'rect':
+        a.set_xlim(-np.pi, np.pi)
+        a.set_ylim(-np.pi / 2, np.pi / 2)
+        a.set_aspect(1.0, adjustable='box', anchor='C')
+    m = a.pcolormesh(MAP_LON_E, MAP_LAT_E, img,
+                     cmap=SURFACE_CMAP if cmap is None else cmap,
+                     vmin=vmin, vmax=vmax, shading='flat', rasterized=True)
+    a.set_xticks([])
+    a.set_yticks([])
+    a.grid(False)
+    spines = ([a.spines['geo']] if PROJ != 'rect'
+              else list(a.spines.values()))
+    for sp in spines:
+        sp.set_linewidth(0.6)
+    return m
+
+
+def cap_line(a, cap_lat):
+    """The hidden-cap boundary at latitude cap_lat (deg): gray dashed,
+    never white, on a map axes."""
+    r = LAT_SIGN * np.radians(cap_lat)
+    a.plot(_MAP_LON_LINE, np.full_like(_MAP_LON_LINE, r), color=GRAY,
+           ls='--', lw=0.6)
+
+
+def cap_shade(a, cap_lat, alpha=0.45):
+    """Gray shading over the hidden cap, from its boundary to the pole."""
+    r = LAT_SIGN * np.radians(cap_lat)
+    a.fill_between(_MAP_LON_LINE, r, LAT_SIGN * np.pi / 2, color=GRAY,
+                   alpha=alpha, lw=0)
+
 
 
 def save_fig(fig, name, formats=('pdf', 'png')):
