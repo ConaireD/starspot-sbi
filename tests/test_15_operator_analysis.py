@@ -24,27 +24,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'scripts'))
 
 from build_caches import build_design
 from operator_analysis import (
-    CHANNELS,
-    GAP_TRUST_DECADES,
-    LAM,
     MISSION_LABEL,
     NOISE_LEVELS,
     PROJECTORS,
     UNIFORM_LABEL,
-    apply_projector,
-    build_T,
-    channel_operators,
     closed_form_rank,
-    degree_map,
-    graded_svd,
-    hard_weights,
     n_eff,
     n_eff_mission,
     observable_power_fraction,
     per_degree_fraction,
     projector_trace,
-    rank_by_gap,
-    rank_by_tol,
     run_analysis,
     shape_correlation,
 )
@@ -52,6 +41,19 @@ from operator_analysis import (
 from starspot_sbi.design_matrix import build_B, build_W
 from starspot_sbi.indexing import n_coeffs
 from starspot_sbi.kernels import precompute_kernels_fast
+from starspot_sbi.operators import (
+    CHANNELS,
+    GAP_TRUST_DECADES,
+    LAM,
+    apply_projector,
+    build_T,
+    channel_operators,
+    degree_map,
+    graded_svd,
+    hard_weights,
+    rank_by_gap,
+    rank_by_tol,
+)
 
 L6 = 6
 N_OBS6 = 32
@@ -540,3 +542,14 @@ def test_run_analysis_refuses_an_absent_cache(tmp_path):
     with pytest.raises(FileNotFoundError, match='build_caches'):
         run_analysis(str(tmp_path / 'nothing'), str(tmp_path / 'out'),
                      [0], L6, N_OBS6, N_BETA, progress=False)
+
+def test_T_is_orthogonal_with_weight_two_off_m_zero():
+    """T^H T is diagonal, 1 on the L + 1 m = 0 entries (packed first) and 2 on
+    the rest, so real-packed norms weight m != 0 entries half as heavily as the
+    complex-coefficient norm does."""
+    L = 4
+    T = build_T(L)
+    G = T.conj().T @ T
+    n = (L + 1) ** 2
+    want = np.r_[np.ones(L + 1), 2.0 * np.ones(n - (L + 1))]
+    assert np.allclose(G, np.diag(want))
