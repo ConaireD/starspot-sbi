@@ -1,10 +1,14 @@
 """Tests for theta integrals: exact vs fast, parity, known values."""
 import numpy as np
 import pytest
-from starspot_sbi.indexing import n_coeffs, lm_indices, lm_to_idx
+
 from starspot_sbi.kernels import (
-    I_u_x_exact, I_u_y_exact, I_u_phot_exact,
-    I_u_x_fast, I_u_y_fast, I_u_phot_fast,
+    I_u_phot_exact,
+    I_u_phot_fast,
+    I_u_x_exact,
+    I_u_x_fast,
+    I_u_y_exact,
+    I_u_y_fast,
 )
 
 ATOL = 1e-8  # sqrt(1-u^2) integrands are not polynomial; GL has ~1e-8 error

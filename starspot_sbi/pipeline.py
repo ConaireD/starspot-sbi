@@ -38,11 +38,17 @@ import numpy as np
 import torch
 
 # self
-from starspot_sbi.indexing import lm_indices, coeffs_to_real, real_to_coeffs
-from starspot_sbi.models   import (FAMILIES, LOG10_SIGMA_PHOT, LOG10_SIGMA_ASTRO,
-                                   beta_norm_from_deg, make_context,
-                                   clf_context, clf_predict)
-from starspot_sbi.render   import N_THETA, N_PHI, build_Ylm_matrix
+from starspot_sbi.indexing import coeffs_to_real, lm_indices, real_to_coeffs
+from starspot_sbi.models import (
+    FAMILIES,
+    LOG10_SIGMA_ASTRO,
+    LOG10_SIGMA_PHOT,
+    beta_norm_from_deg,
+    clf_context,
+    clf_predict,
+    make_context,
+)
+from starspot_sbi.render import N_PHI, N_THETA, build_Ylm_matrix
 
 #############
 # Constants #

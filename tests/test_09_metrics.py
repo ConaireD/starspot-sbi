@@ -6,30 +6,30 @@ Tests for metrics.py.
 import numpy as np
 import pytest
 
-from starspot_sbi.render import N_THETA, N_PHI, render_coeffs, grid_coordinates
-from starspot_sbi.surfaces import place_spot, generate_spotted_surface
 from starspot_sbi.metrics import (
-    VIS_TOL,
     SPOT_THRESHOLD,
-    lat_mu_grid,
-    visibility_mask,
+    VIS_TOL,
     cap_boundary_lat,
-    weights,
-    wmean,
-    ssim_map,
+    crps,
+    detection_operating_points,
+    err_unc_corr,
+    lat_mu_grid,
+    mae,
+    pr_auc,
+    rmse,
+    scalar_metrics,
+    spot_mask,
     ssim_2d,
+    ssim_aa_full,
     ssim_aa_vis,
     ssim_aa_wmean,
-    ssim_aa_full,
-    rmse,
-    mae,
-    err_unc_corr,
-    crps,
-    spot_mask,
-    pr_auc,
-    detection_operating_points,
-    scalar_metrics,
+    ssim_map,
+    visibility_mask,
+    weights,
+    wmean,
 )
+from starspot_sbi.render import grid_coordinates, render_coeffs
+from starspot_sbi.surfaces import generate_spotted_surface
 
 NT, NP = 120, 240
 

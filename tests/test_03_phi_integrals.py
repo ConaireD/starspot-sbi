@@ -8,10 +8,14 @@ and internal consistency.
 """
 import numpy as np
 import pytest
-from starspot_sbi.indexing import n_coeffs, lm_indices, lm_to_idx
+
 from starspot_sbi.kernels import (
-    I_phi_x_exact, I_phi_y_exact, I_phi_p_exact,
-    I_phi_x_fast, I_phi_y_fast, I_phi_p_fast,
+    I_phi_p_exact,
+    I_phi_p_fast,
+    I_phi_x_exact,
+    I_phi_x_fast,
+    I_phi_y_exact,
+    I_phi_y_fast,
 )
 
 ATOL = 1e-12

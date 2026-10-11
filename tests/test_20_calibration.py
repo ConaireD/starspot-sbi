@@ -20,11 +20,15 @@ import numpy as np
 import pytest
 import torch
 
-from starspot_sbi.calibration import (sbc_ranks, ecdf_band,
-                                      width_from_rank_variance,
-                                      tarp_coverage, pit_pixels)
-from starspot_sbi.models import FAMILIES, GAIN_PHOT, GAIN_AST, load_vae, load_flow
-from starspot_sbi.pipeline import sample_draws, sample_latents, decode_latents
+from starspot_sbi.calibration import (
+    ecdf_band,
+    pit_pixels,
+    sbc_ranks,
+    tarp_coverage,
+    width_from_rank_variance,
+)
+from starspot_sbi.models import FAMILIES, GAIN_AST, GAIN_PHOT, load_flow, load_vae
+from starspot_sbi.pipeline import decode_latents, sample_draws, sample_latents
 
 WEIGHTS = Path(__file__).resolve().parent.parent / 'weights'
 SUFFIX = '_temp'

@@ -21,20 +21,36 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'scripts'))
 
-from build_caches import build_design                          # noqa: E402
-from operator_analysis import (                                # noqa: E402
-    CHANNELS, GAP_TRUST_DECADES, LAM, NOISE_LEVELS, PROJECTORS,
-    MISSION_LABEL, UNIFORM_LABEL,
-    build_T, degree_map, channel_operators,
-    rank_by_gap, rank_by_tol, closed_form_rank,
-    graded_svd, hard_weights, apply_projector, observable_power_fraction,
-    variance_reduction, per_degree_fraction, projector_trace,
-    shape_correlation, n_eff, n_eff_mission,
+from build_caches import build_design
+from operator_analysis import (
+    CHANNELS,
+    GAP_TRUST_DECADES,
+    LAM,
+    MISSION_LABEL,
+    NOISE_LEVELS,
+    PROJECTORS,
+    UNIFORM_LABEL,
+    apply_projector,
+    build_T,
+    channel_operators,
+    closed_form_rank,
+    degree_map,
+    graded_svd,
+    hard_weights,
+    n_eff,
+    n_eff_mission,
+    observable_power_fraction,
+    per_degree_fraction,
+    projector_trace,
+    rank_by_gap,
+    rank_by_tol,
     run_analysis,
+    shape_correlation,
 )
-from starspot_sbi.indexing import n_coeffs                     # noqa: E402
-from starspot_sbi.kernels import precompute_kernels_fast       # noqa: E402
-from starspot_sbi.design_matrix import build_W, build_B        # noqa: E402
+
+from starspot_sbi.design_matrix import build_B, build_W
+from starspot_sbi.indexing import n_coeffs
+from starspot_sbi.kernels import precompute_kernels_fast
 
 L6 = 6
 N_OBS6 = 32

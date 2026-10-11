@@ -13,11 +13,11 @@ Convention (z-y-z active):
 
 # standard
 import numpy as np
-from tqdm.auto import tqdm
 
 # special
 from scipy.special import gammaln
 from sympy.physics.wigner import wigner_d_small
+from tqdm.auto import tqdm
 
 #######################
 # Full D from small d #

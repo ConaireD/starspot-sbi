@@ -28,9 +28,13 @@ import torch
 
 from starspot_sbi.indexing import coeffs_to_real
 from starspot_sbi.models import load_vae
-from starspot_sbi.pipeline import (encode_latents, decode_latents,
-                                   decode_ceiling_coeffs, decode_ceiling,
-                                   render_draws)
+from starspot_sbi.pipeline import (
+    decode_ceiling,
+    decode_ceiling_coeffs,
+    decode_latents,
+    encode_latents,
+    render_draws,
+)
 from starspot_sbi.surfaces import generate_spotted_surface
 
 WEIGHTS = Path(__file__).resolve().parent.parent / 'weights'

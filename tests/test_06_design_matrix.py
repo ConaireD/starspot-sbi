@@ -3,12 +3,15 @@ Tests for design.py
 """
 import numpy as np
 import pytest
- 
+
+from starspot_sbi.design_matrix import (
+    build_B,
+    build_design_matrix,
+    build_W,
+    forward_model,
+)
 from starspot_sbi.indexing import lm_indices, lm_to_idx, n_coeffs, real_to_coeffs
 from starspot_sbi.kernels import precompute_kernels_fast
-from starspot_sbi.design_matrix import build_W, build_B, build_design_matrix, forward_model
-
-
 
 L = 4
 P_ROT = 10.0

@@ -29,11 +29,12 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'scripts'))
 
-from run_holdout import load_holdout_index                       # noqa: E402
-from starspot_sbi.kernels import precompute_kernels_fast         # noqa: E402
-from starspot_sbi.design_matrix import build_design_matrix, forward_model  # noqa: E402
-from starspot_sbi.surfaces import generate_spotted_surface       # noqa: E402
-from starspot_sbi.render import N_THETA, N_PHI                   # noqa: E402
+from run_holdout import load_holdout_index
+
+from starspot_sbi.design_matrix import build_design_matrix, forward_model
+from starspot_sbi.kernels import precompute_kernels_fast
+from starspot_sbi.render import N_PHI, N_THETA
+from starspot_sbi.surfaces import generate_spotted_surface
 
 L = 8
 N_OBS = 32

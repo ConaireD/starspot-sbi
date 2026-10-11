@@ -9,9 +9,8 @@ docs/conventions.md section 10.
 import numpy as np
 import pytest
 
-from starspot_sbi.indexing import (coeffs_to_real, lm_indices, n_coeffs,
-                                   real_to_coeffs)
 from starspot_sbi.design_matrix import build_design_matrix, forward_model
+from starspot_sbi.indexing import coeffs_to_real, lm_indices, n_coeffs, real_to_coeffs
 from starspot_sbi.render import build_Ylm_matrix
 
 pytestmark = pytest.mark.slow

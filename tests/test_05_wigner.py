@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 
 from starspot_sbi.wigner import (
+    precompute_wigner_d_fast,
     wigner_D_from_d,
     wigner_d_matrix_exact,
     wigner_d_matrix_fast,
-    precompute_wigner_d_fast,
 )
 
 BETAS = [0.1, 0.7, np.pi / 3, 1.9, 3.0]

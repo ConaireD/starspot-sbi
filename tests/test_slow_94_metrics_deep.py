@@ -9,8 +9,17 @@ import numpy as np
 import pytest
 
 from starspot_sbi.indexing import coeffs_to_real
-from starspot_sbi.metrics import (crps, mae, pr_auc, rmse, ssim_aa_full,
-                                  ssim_aa_vis, ssim_map, weights, wmean)
+from starspot_sbi.metrics import (
+    crps,
+    mae,
+    pr_auc,
+    rmse,
+    ssim_aa_full,
+    ssim_aa_vis,
+    ssim_map,
+    weights,
+    wmean,
+)
 from starspot_sbi.render import render
 
 pytestmark = pytest.mark.slow

@@ -8,7 +8,6 @@ still runs a meaningful suite.
 
 """
 
-import json
 from pathlib import Path
 
 import numpy as np
@@ -16,18 +15,42 @@ import pytest
 import torch
 
 from starspot_sbi.models import (
-    L_MAX, N_COEFFS, N_BETA_CLASSES,
-    CH_PHOT, CH_AX, CH_AY, FAMILIES,
-    LOG10_SIGMA_PHOT, LOG10_SIGMA_ASTRO, GAIN_PHOT, GAIN_AST,
-    FLOW, EMB, AUX_DIM,
-    ArchConfig, EncoderFlex, DecoderFlex, LatentSpace, VAE,
-    AttnSignalEmbeddingAux, BetaClassifier,
-    band_index_sets, order_index_sets, input_dim,
-    _u, beta_norm_from_deg, beta_deg_from_norm,
-    n_aux_for_flow, n_aux_for_clf,
-    make_context, clf_context,
-    build_flow, make_prior, make_posterior,
-    load_vae, load_flow, load_classifier, clf_predict,
+    AUX_DIM,
+    CH_AX,
+    CH_PHOT,
+    EMB,
+    FAMILIES,
+    GAIN_AST,
+    GAIN_PHOT,
+    L_MAX,
+    LOG10_SIGMA_ASTRO,
+    LOG10_SIGMA_PHOT,
+    N_BETA_CLASSES,
+    N_COEFFS,
+    VAE,
+    ArchConfig,
+    AttnSignalEmbeddingAux,
+    BetaClassifier,
+    DecoderFlex,
+    EncoderFlex,
+    LatentSpace,
+    _u,
+    band_index_sets,
+    beta_deg_from_norm,
+    beta_norm_from_deg,
+    build_flow,
+    clf_context,
+    clf_predict,
+    input_dim,
+    load_classifier,
+    load_flow,
+    load_vae,
+    make_context,
+    make_posterior,
+    make_prior,
+    n_aux_for_clf,
+    n_aux_for_flow,
+    order_index_sets,
 )
 
 WEIGHTS = Path(__file__).resolve().parent.parent / 'weights'

@@ -13,14 +13,14 @@ import numpy as np
 import pytest
 from scipy.special import sph_harm_y
 
-from starspot_sbi.indexing import lm_to_idx, lm_indices, n_coeffs
-from starspot_sbi.wigner import wigner_d_matrix_fast
+from starspot_sbi.indexing import lm_indices, lm_to_idx, n_coeffs
 from starspot_sbi.surfaces import (
+    generate_spotted_surface,
+    place_spot,
     spherical_cap_coeffs,
     spherical_cap_coeffs_exact,
-    place_spot,
-    generate_spotted_surface,
 )
+from starspot_sbi.wigner import wigner_d_matrix_fast
 
 L = 8
 RHO = np.deg2rad(20)

@@ -25,8 +25,7 @@ import numpy as np
 import pytest
 
 from starspot_sbi.indexing import lm_indices
-from starspot_sbi.kernels import (precompute_kernels_fast,
-                                   I_phi_x_fast, I_phi_y_fast)
+from starspot_sbi.kernels import I_phi_x_fast, I_phi_y_fast, precompute_kernels_fast
 
 # Entries below this are treated as analytically zero. Kernel magnitudes at
 # L=12 span roughly 1e-1 to 1e-4, and the quadrature floor is ~1e-16, so any

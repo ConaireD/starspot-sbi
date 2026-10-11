@@ -1,7 +1,8 @@
 """Tests for kernel computation: shapes, sparsity, exact vs fast agreement."""
 import numpy as np
 import pytest
-from starspot_sbi.indexing import n_coeffs, lm_indices, lm_to_idx
+
+from starspot_sbi.indexing import lm_indices, lm_to_idx, n_coeffs
 from starspot_sbi.kernels import precompute_kernels_fast
 
 

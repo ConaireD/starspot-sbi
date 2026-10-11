@@ -21,7 +21,6 @@ directly.
 import numpy as np
 from scipy.stats import norm
 
-
 #####################
 # SBC               #
 #####################

@@ -16,8 +16,9 @@ real_to_coeffs regenerates it. L is inferred from array length, never global.
 # Imports #
 ###########
 
-import numpy as np
 from functools import lru_cache
+
+import numpy as np
 
 #############
 # Functions #

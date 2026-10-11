@@ -9,14 +9,27 @@ rather than raising (see its docstring).
 import numpy as np
 import pytest
 
-from starspot_sbi.indexing import (coeffs_to_real, idx_to_lm, lm_to_idx,
-                                   lm_indices, n_coeffs)
 from starspot_sbi.design_matrix import build_B, build_design_matrix, forward_model
-from starspot_sbi.metrics import (VIS_TOL, crps, detection_operating_points,
-                                  mae, pr_auc, rmse, scalar_metrics, ssim_map,
-                                  visibility_mask, weights, wmean)
-from starspot_sbi.render import render, render_coeffs
-from starspot_sbi.surfaces import generate_spotted_surface, place_spot
+from starspot_sbi.indexing import (
+    idx_to_lm,
+    lm_indices,
+    lm_to_idx,
+)
+from starspot_sbi.metrics import (
+    VIS_TOL,
+    crps,
+    detection_operating_points,
+    mae,
+    pr_auc,
+    rmse,
+    scalar_metrics,
+    ssim_map,
+    visibility_mask,
+    weights,
+    wmean,
+)
+from starspot_sbi.render import render_coeffs
+from starspot_sbi.surfaces import generate_spotted_surface
 
 pytestmark = pytest.mark.slow
 

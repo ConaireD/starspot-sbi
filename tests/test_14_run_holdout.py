@@ -14,11 +14,10 @@ fixture cannot pass through them at all. The real path is covered by
 test_11_end_to_end and test_slow_25_models.
 """
 
+import json
 import os
 import sys
-import shutil
 from pathlib import Path
-import json
 
 import numpy as np
 import pandas as pd
@@ -26,19 +25,30 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'scripts'))
 
-from run_holdout import (                                        # noqa: E402
-    COLUMNS, _column, read_pair, load_holdout_index, score, summarise,
+from run_holdout import (
+    COLUMNS,
+    _column,
+    load_holdout_index,
+    read_pair,
+    score,
+    summarise,
 )
-from starspot_sbi.indexing import coeffs_to_real                 # noqa: E402
-from starspot_sbi.kernels import precompute_kernels_fast         # noqa: E402
-from starspot_sbi.design_matrix import build_design_matrix, forward_model  # noqa: E402
-from starspot_sbi.surfaces import generate_spotted_surface       # noqa: E402
-from starspot_sbi.render import render, N_THETA, N_PHI           # noqa: E402
-from starspot_sbi.pipeline import (render_draws, select_channels,  # noqa: E402
-                                   to_model_order)
-from starspot_sbi.metrics import (spot_mask, weights, wmean,     # noqa: E402
-                                  ssim_aa_vis, rmse as rmse_metric,
-                                  cap_boundary_lat, SPOT_THRESHOLD)
+
+from starspot_sbi.design_matrix import build_design_matrix, forward_model
+from starspot_sbi.indexing import coeffs_to_real
+from starspot_sbi.kernels import precompute_kernels_fast
+from starspot_sbi.metrics import (
+    SPOT_THRESHOLD,
+    cap_boundary_lat,
+    spot_mask,
+    ssim_aa_vis,
+    weights,
+    wmean,
+)
+from starspot_sbi.metrics import rmse as rmse_metric
+from starspot_sbi.pipeline import render_draws, select_channels, to_model_order
+from starspot_sbi.render import N_PHI, N_THETA
+from starspot_sbi.surfaces import generate_spotted_surface
 
 L = 8
 N_OBS = 32
@@ -425,7 +435,7 @@ def test_run_family_passes_the_stored_channel_order(holdout, tmp_path,
 
     sig = captured['sig']
     means = [float(np.mean(sig[:, j])) for j in range(3)]
-    print(f'channel means as passed to sample_draws: '
+    print('channel means as passed to sample_draws: '
           + ', '.join(f'{m:+.4f}' for m in means))
     assert sig.shape[1] == 3
     assert means[2] > 0.5, 'stored order puts photometry last'
@@ -435,8 +445,8 @@ def test_run_family_passes_the_stored_channel_order(holdout, tmp_path,
     twice = to_model_order(once, 'phot_axay', stored=True)
     m_once = [float(np.mean(once[:, j])) for j in range(3)]
     m_twice = [float(np.mean(twice[:, j])) for j in range(3)]
-    print(f'one permutation: ' + ', '.join(f'{m:+.4f}' for m in m_once))
-    print(f'two permutations: ' + ', '.join(f'{m:+.4f}' for m in m_twice))
+    print('one permutation: ' + ', '.join(f'{m:+.4f}' for m in m_once))
+    print('two permutations: ' + ', '.join(f'{m:+.4f}' for m in m_twice))
     assert m_once[0] > 0.5, 'model order puts photometry first'
     assert m_twice[0] < 0.1, 'the double permutation must be detectable'
     assert np.array_equal(once, select_channels(sig, 'phot_axay'))

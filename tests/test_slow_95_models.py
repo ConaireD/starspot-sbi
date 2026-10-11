@@ -21,9 +21,16 @@ import torch
 
 from starspot_sbi.indexing import coeffs_to_real
 from starspot_sbi.metrics import ssim_aa_vis
-from starspot_sbi.models import (beta_norm_from_deg, clf_context, clf_predict,
-                                 load_classifier, load_flow, load_vae,
-                                 make_context, make_posterior)
+from starspot_sbi.models import (
+    beta_norm_from_deg,
+    clf_context,
+    clf_predict,
+    load_classifier,
+    load_flow,
+    load_vae,
+    make_context,
+    make_posterior,
+)
 from starspot_sbi.render import render, render_normed
 
 pytestmark = pytest.mark.slow

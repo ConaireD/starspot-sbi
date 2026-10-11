@@ -20,14 +20,22 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'scripts'))
 
-from build_caches import (                                    # noqa: E402
-    epochs, epoch_hash, provenance, check_provenance,
-    kernel_path, design_path, build_kernels, build_design,
-    load_design, load_kernels, describe,
+from build_caches import (
+    build_design,
+    check_provenance,
+    describe,
+    design_path,
+    epoch_hash,
+    epochs,
+    kernel_path,
+    load_design,
+    load_kernels,
+    provenance,
 )
-from starspot_sbi.indexing import n_coeffs                     # noqa: E402
-from starspot_sbi.kernels import precompute_kernels_fast, _GL_N  # noqa: E402
-from starspot_sbi.design_matrix import build_design_matrix     # noqa: E402
+
+from starspot_sbi.design_matrix import build_design_matrix
+from starspot_sbi.indexing import n_coeffs
+from starspot_sbi.kernels import _GL_N, precompute_kernels_fast
 
 L = 4
 N_OBS = 16

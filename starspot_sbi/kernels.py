@@ -34,14 +34,25 @@ RE: linear* see the linearity.md document for details.
 import numpy as np
 
 # symbolic /science
-import sympy 
-from sympy import Symbol, sin, cos, sqrt, pi, factorial, Abs, N, integrate, assoc_legendre
+import sympy
 from scipy.special import lpmv, sph_harm_y
+from sympy import (
+    Abs,
+    N,
+    Symbol,
+    assoc_legendre,
+    cos,
+    factorial,
+    integrate,
+    pi,
+    sin,
+    sqrt,
+)
 
 # helpers
 from tqdm.auto import tqdm
-from starspot_sbi.indexing import lm_indices
 
+from starspot_sbi.indexing import lm_indices
 
 #################
 # Phi integrals #

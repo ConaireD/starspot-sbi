@@ -26,17 +26,24 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'scripts'))
 
-from build_caches import build_design, load_design                  # noqa: E402
-from operator_analysis import (build_T, channel_operators,          # noqa: E402
-                               rank_by_gap, n_eff)
-from posterior_shrinkage import (                                   # noqa: E402
-    CALIBRATION_CAVEAT, FAMILY_CHANNELS,
-    whitened_operator, operator_svd, prior_direction_variance,
-    analytic_variance, analytic_shrinkage, exact_direction_variance,
-    projected_variance, shrinkage_from_variance,
-    iter_draw_rows, analyse,
+from build_caches import build_design, load_design
+from operator_analysis import build_T, channel_operators, n_eff, rank_by_gap
+from posterior_shrinkage import (
+    CALIBRATION_CAVEAT,
+    FAMILY_CHANNELS,
+    analyse,
+    analytic_shrinkage,
+    analytic_variance,
+    exact_direction_variance,
+    iter_draw_rows,
+    operator_svd,
+    prior_direction_variance,
+    projected_variance,
+    shrinkage_from_variance,
+    whitened_operator,
 )
-from starspot_sbi.indexing import n_coeffs                          # noqa: E402
+
+from starspot_sbi.indexing import n_coeffs
 
 L6 = 6
 N_OBS6 = 32

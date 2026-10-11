@@ -22,20 +22,37 @@ import numpy as np
 import pytest
 import torch
 
-from starspot_sbi.indexing import lm_indices, coeffs_to_real, real_to_coeffs
-from starspot_sbi.models import (FAMILIES, GAIN_PHOT, GAIN_AST, N_COEFFS,
-                                 LOG10_SIGMA_PHOT, LOG10_SIGMA_ASTRO,
-                                 beta_norm_from_deg, make_context,
-                                 load_vae, load_flow)
-from starspot_sbi.render import N_THETA, N_PHI, build_Ylm_matrix
-from starspot_sbi.pipeline import (STORED_TO_MODEL,
-                                   LOG10_SIGMA_PHOT_MISSION,
-                                   LOG10_SIGMA_ASTRO_MISSION,
-                                   select_channels, to_model_order,
-                                   render_draws, power_spectrum, sample_draws,
-                                   sample_latents, posterior_mean, reconstruct,
-                                   encode_latents, decode_latents,
-                                   decode_ceiling, decode_ceiling_coeffs)
+from starspot_sbi.indexing import coeffs_to_real, lm_indices, real_to_coeffs
+from starspot_sbi.models import (
+    FAMILIES,
+    GAIN_AST,
+    GAIN_PHOT,
+    LOG10_SIGMA_ASTRO,
+    LOG10_SIGMA_PHOT,
+    N_COEFFS,
+    beta_norm_from_deg,
+    load_flow,
+    load_vae,
+    make_context,
+)
+from starspot_sbi.pipeline import (
+    LOG10_SIGMA_ASTRO_MISSION,
+    LOG10_SIGMA_PHOT_MISSION,
+    STORED_TO_MODEL,
+    decode_ceiling,
+    decode_ceiling_coeffs,
+    decode_latents,
+    encode_latents,
+    posterior_mean,
+    power_spectrum,
+    reconstruct,
+    render_draws,
+    sample_draws,
+    sample_latents,
+    select_channels,
+    to_model_order,
+)
+from starspot_sbi.render import N_PHI, N_THETA, build_Ylm_matrix
 
 WEIGHTS = Path(__file__).resolve().parent.parent / 'weights'
 SUFFIX = '_temp'                 # marks the checkpoints as pending verification

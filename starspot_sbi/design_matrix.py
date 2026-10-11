@@ -11,7 +11,7 @@ import numpy as np
 
 # self
 from starspot_sbi.indexing import n_coeffs
-from starspot_sbi.wigner   import wigner_d_matrix_fast
+from starspot_sbi.wigner import wigner_d_matrix_fast
 
 #############
 # Functions #

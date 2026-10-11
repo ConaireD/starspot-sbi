@@ -14,10 +14,14 @@ Assumptions these tests cannot check:
 import numpy as np
 
 from starspot_sbi.indexing import coeffs_to_real
+from starspot_sbi.metrics import (
+    hist_kl_split,
+    spot_distribution_entropy,
+    surface_intensity_entropy,
+    total_variation,
+)
 from starspot_sbi.render import render
 from starspot_sbi.surfaces import generate_spotted_surface
-from starspot_sbi.metrics import (total_variation, spot_distribution_entropy,
-                                  surface_intensity_entropy, hist_kl_split)
 
 L = 30
 

@@ -14,18 +14,24 @@ import numpy as np
 import pytest
 from scipy.special import sph_harm_y
 
-from starspot_sbi.indexing import (lm_indices, lm_to_idx, n_coeffs,
-                                   coeffs_to_real, real_to_coeffs)
-from starspot_sbi.surfaces import place_spot, generate_spotted_surface
+from starspot_sbi.indexing import (
+    coeffs_to_real,
+    lm_indices,
+    lm_to_idx,
+    n_coeffs,
+    real_to_coeffs,
+)
 from starspot_sbi.render import (
-    N_THETA, N_PHI,
+    N_PHI,
+    N_THETA,
     build_Ylm_matrix,
     get_Ylm,
+    grid_coordinates,
     render,
     render_coeffs,
     render_normed,
-    grid_coordinates,
 )
+from starspot_sbi.surfaces import generate_spotted_surface, place_spot
 
 L = 8
 NT, NP = 60, 120        # small grid for speed; production is N_THETA, N_PHI

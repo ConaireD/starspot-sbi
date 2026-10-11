@@ -4,8 +4,13 @@ import numpy as np
 import pytest
 
 from starspot_sbi.indexing import (
-    lm_indices, n_coeffs, lm_to_idx, idx_to_lm,
-    coeffs_to_real, real_to_coeffs, _L_from_len,
+    _L_from_len,
+    coeffs_to_real,
+    idx_to_lm,
+    lm_indices,
+    lm_to_idx,
+    n_coeffs,
+    real_to_coeffs,
 )
 
 

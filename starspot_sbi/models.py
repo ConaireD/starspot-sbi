@@ -22,18 +22,16 @@ is applied when a signal is read; see docs/conventions.md section 9.
 
 # python?
 from dataclasses import dataclass
-from typing import List, Optional
 
 # standard
 import numpy as np
 
 # machine learning
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-
-from sbi.neural_nets import posterior_nn
 from sbi.inference.posteriors import DirectPosterior
+from sbi.neural_nets import posterior_nn
+from torch import nn
 
 #####################
 # Constants + notes #
@@ -205,7 +203,7 @@ class ArchConfig:
     layers_per_stage: int = 2
     latent_dim: int = 96
     output_dim: int = 128
-    head_hidden_dims: Optional[List[int]] = None
+    head_hidden_dims: list[int] | None = None
     attn_dropout: float = 0.1
     head_dropout: float = 0.15
     beta_final: float = 1.1

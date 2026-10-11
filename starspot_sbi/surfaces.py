@@ -17,14 +17,13 @@ import numpy as np
 
 # symbolic
 import sympy
-from sympy import Symbol, Rational, N, pi, sqrt, legendre
 
 # special
-from scipy.special import eval_legendre, lpmv, gammaln
+from scipy.special import eval_legendre, gammaln, lpmv
+from sympy import N, Rational, Symbol, legendre, pi, sqrt
 
 # self
 from starspot_sbi.indexing import n_coeffs
-
 
 ###################
 # Polar cap (m=0) #

@@ -17,10 +17,14 @@ figure notebook uses.
 import numpy as np
 
 from starspot_sbi.indexing import coeffs_to_real
+from starspot_sbi.metrics import (
+    pr_auc,
+    pr_auc_bands,
+    pr_auc_weighted,
+    weights,
+)
 from starspot_sbi.render import render
 from starspot_sbi.surfaces import generate_spotted_surface
-from starspot_sbi.metrics import (pr_auc, pr_auc_weighted, pr_auc_bands,
-                                  weights, spot_mask)
 
 L = 30
 

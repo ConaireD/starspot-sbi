@@ -12,9 +12,9 @@ at four betas including both endpoints.
 import numpy as np
 import pytest
 
+from starspot_sbi.design_matrix import build_design_matrix, forward_model
 from starspot_sbi.indexing import n_coeffs
 from starspot_sbi.kernels import precompute_kernels_fast
-from starspot_sbi.design_matrix import build_design_matrix, forward_model
 from starspot_sbi.metrics import VIS_TOL, visibility_mask, weights
 
 pytestmark = pytest.mark.slow

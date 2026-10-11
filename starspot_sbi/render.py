@@ -23,8 +23,9 @@ with origin='upper' so that row 0 appears at the top.
 ###########
 
 # standard
+from functools import lru_cache  # memory efficient thingo
+
 import numpy as np
-from functools import lru_cache # memory efficient thingo
 
 # special
 from scipy.special import sph_harm_y

@@ -29,8 +29,7 @@ import numpy as np
 from scipy.ndimage import uniform_filter1d
 
 # self
-from starspot_sbi.render import N_THETA, N_PHI, grid_coordinates
-
+from starspot_sbi.render import N_PHI, N_THETA, grid_coordinates
 
 #############
 # Constants #
@@ -694,7 +693,7 @@ def count_modes(p, height_frac=0.1, prominence_frac=0.05):
     padded = np.concatenate([[-1.0], p, [-1.0]])
     peaks, _ = find_peaks(padded, height=height_frac * pk,
                           prominence=prominence_frac * pk)
-    return int(len(peaks))
+    return len(peaks)
 
 
 #####################

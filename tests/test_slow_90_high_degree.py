@@ -19,12 +19,11 @@ import pytest
 from scipy.integrate import quad
 from scipy.special import gammaln, lpmv, sph_harm_y
 
-from starspot_sbi.indexing import coeffs_to_real, lm_indices, n_coeffs
-from starspot_sbi.kernels import (I_phi_x_fast, I_phi_y_fast,
-                                  precompute_kernels_fast)
 from starspot_sbi.design_matrix import build_design_matrix, forward_model
-from starspot_sbi.render import render
+from starspot_sbi.indexing import coeffs_to_real, lm_indices, n_coeffs
+from starspot_sbi.kernels import I_phi_x_fast, I_phi_y_fast
 from starspot_sbi.metrics import ssim_map
+from starspot_sbi.render import render
 from starspot_sbi.surfaces import generate_spotted_surface
 from starspot_sbi.wigner import wigner_d_matrix_exact, wigner_d_matrix_fast
 
