@@ -53,7 +53,7 @@ from starspot_sbi.render import render, render_normed
 
 WEIGHTS = Path(__file__).resolve().parent.parent / 'weights'
 FIXTURES = Path(__file__).resolve().parent / 'fixtures'
-SUFFIX = '_temp'
+SUFFIX = '_filtered'
 FAMILY = 'phot_axay'
 
 T_SIGNAL = 216

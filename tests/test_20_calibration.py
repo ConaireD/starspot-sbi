@@ -31,7 +31,7 @@ from starspot_sbi.models import FAMILIES, GAIN_AST, GAIN_PHOT, load_flow, load_v
 from starspot_sbi.pipeline import decode_latents, sample_draws, sample_latents
 
 WEIGHTS = Path(__file__).resolve().parent.parent / 'weights'
-SUFFIX = '_temp'
+SUFFIX = '_filtered'
 T_SIGNAL = 216
 LATENT = 8
 
@@ -63,7 +63,9 @@ class StubEstimator:
 
 def make_meta(family):
     return {'ch': FAMILIES[family], 'T': T_SIGNAL,
-            'gain_phot': GAIN_PHOT, 'gain_ast': GAIN_AST}
+            'gain_phot': GAIN_PHOT, 'gain_ast': GAIN_AST,
+            'z_mu': torch.zeros(LATENT, dtype=torch.float32),
+            'z_std': torch.ones(LATENT, dtype=torch.float32)}
 
 
 def make_stats(n, seed=7):

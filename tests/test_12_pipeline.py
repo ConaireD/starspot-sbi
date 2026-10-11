@@ -55,7 +55,7 @@ from starspot_sbi.pipeline import (
 from starspot_sbi.render import N_PHI, N_THETA, build_Ylm_matrix
 
 WEIGHTS = Path(__file__).resolve().parent.parent / 'weights'
-SUFFIX = '_temp'                 # marks the checkpoints as pending verification
+SUFFIX = '_filtered'                 
 T_SIGNAL = 216
 LATENT_DIM = 96
 

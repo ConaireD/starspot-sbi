@@ -47,7 +47,7 @@ from starspot_sbi.render import render
 # Constants #
 #############
 
-WEIGHTS_SUFFIX = '_temp'
+WEIGHTS_SUFFIX = '_filtered'
 LATENT_DIM = 96
 SNR_GRID = (-6.0, -5.0, -4.5, -4.0, -3.5, -3.0, -2.5, -2.0)
 CHUNK = 25
