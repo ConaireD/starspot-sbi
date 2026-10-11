@@ -33,6 +33,7 @@ from run_holdout import load_holdout_index
 
 from starspot_sbi.design_matrix import build_design_matrix, forward_model
 from starspot_sbi.kernels import precompute_kernels_fast
+from starspot_sbi.pipeline import LOG10_SIGMA_ASTRO_MISSION
 from starspot_sbi.render import N_PHI, N_THETA
 from starspot_sbi.surfaces import generate_spotted_surface
 
@@ -272,7 +273,7 @@ def test_a_comma_joined_grid_is_rejected(holdout, tmp_path, monkeypatch):
 
 def test_the_default_grid_is_the_module_constant(holdout, tmp_path,
                                                  monkeypatch):
-    """Without --grid the sweep runs the eight levels the module declares."""
+    """Without --grid the sweep runs the levels the module declares."""
     import importlib
     ns = importlib.import_module('noise_sweep')
     out = str(tmp_path / 'snr')
@@ -282,3 +283,12 @@ def test_the_default_grid_is_the_module_constant(holdout, tmp_path,
     print(f'default grid: {levels}')
     assert levels == sorted(round(g, 2) for g in ns.SNR_GRID)
     assert len(df) == N_SURF * len(ns.SNR_GRID)
+
+def test_the_default_grid_covers_the_operating_point_and_its_band():
+    """The SNR figure quotes the operating point and shades -3.6 to -3.1, so
+    the default grid must contain all three."""
+    import importlib
+    ns = importlib.import_module('noise_sweep')
+    assert LOG10_SIGMA_ASTRO_MISSION in ns.SNR_GRID
+    assert {-3.6, -3.1} <= set(ns.SNR_GRID)
+    

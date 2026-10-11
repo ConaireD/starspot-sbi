@@ -15,3 +15,4 @@
 
 - Default astrometric noise (`LOG10_SIGMA_ASTRO_MISSION`) is now -3.1, the
   paper's operating point (previously -3.5, the alpha Cen B mission point).
+  - `noise_sweep` default grid adds -3.6 and -3.1, the operating point and the edges of the band the SNR figure shades.
