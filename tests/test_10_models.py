@@ -54,7 +54,7 @@ from starspot_sbi.models import (
 )
 
 WEIGHTS = Path(__file__).resolve().parent.parent / 'weights'
-SUFFIX = '_temp'                 # marks the checkpoints as pending verification
+SUFFIX = '_filtered'                 
 T_SIGNAL = 216
 LATENT_DIM = 96
 
@@ -347,6 +347,14 @@ def test_make_prior_dimensions():
     prior = make_prior(LATENT_DIM)
     assert prior.sample((5,)).shape == (5, LATENT_DIM)
     assert prior.log_prob(torch.zeros(3, LATENT_DIM)).shape == (3,)
+
+def test_load_flow_rejects_a_checkpoint_without_z_statistics(tmp_path):
+    """Decoding raw draws from such a flow would be wrong without any error,
+    so loading it must fail."""
+    path = tmp_path / 'flow_without_z.pt'
+    torch.save({'ch': [0], 'n_aux': 2}, path)
+    with pytest.raises(KeyError, match='z_mu'):
+        load_flow(path)
 
 
 ############################

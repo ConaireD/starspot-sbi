@@ -72,7 +72,7 @@ FAMILY_CHANNELS = {
     'phot_axay': ('phot', 'x', 'y'),
 }
 
-DEFAULT_VAE = os.path.join('weights', 'vae_n640000_seed101_temp.pt')
+DEFAULT_VAE = os.path.join('weights', 'vae_n640000_seed101_filtered.pt')
 DEFAULT_OUT_DIR = os.path.join('results', 'shrinkage')
 
 CALIBRATION_CAVEAT = (

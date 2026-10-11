@@ -55,7 +55,7 @@ from starspot_sbi.pipeline import (
 from starspot_sbi.render import N_PHI, N_THETA, build_Ylm_matrix
 
 WEIGHTS = Path(__file__).resolve().parent.parent / 'weights'
-SUFFIX = '_temp'                 # marks the checkpoints as pending verification
+SUFFIX = '_filtered'                 
 T_SIGNAL = 216
 LATENT_DIM = 96
 
@@ -140,12 +140,14 @@ def make_stats(n, include_dc=True, dc_value=None, seed=7):
             'dc_value': dc_value}
 
 
-def make_meta(family):
+def make_meta(family, z_mu=None, z_std=None):
     return {'ch': FAMILIES[family], 'T': T_SIGNAL,
             'gain_phot': GAIN_PHOT, 'gain_ast': GAIN_AST,
             'log10_sigma_phot': LOG10_SIGMA_PHOT,
             'log10_sigma_astro': LOG10_SIGMA_ASTRO,
-            'temperature': 1.0}
+            'temperature': 1.0,
+            'z_mu': torch.zeros(LATENT_DIM) if z_mu is None else torch.as_tensor(z_mu),
+            'z_std': torch.ones(LATENT_DIM) if z_std is None else torch.as_tensor(z_std)}
 
 
 def make_signals(B, n_ch, T=T_SIGNAL, seed=0):
@@ -387,6 +389,36 @@ def test_the_standardisation_is_inverted(constant):
     print(f"constant {constant}: max error {err:.3e}")
     assert err < 1e-5
 
+def test_sample_draws_inverts_the_latent_zscore():
+    """The flows model the z-scored latent (z - z_mu) / z_std, so a constant
+    flow draw c must reach the decoder as c z_std + z_mu."""
+    B, n_draws, c = 3, 5, 0.7
+    rng = np.random.default_rng(3)
+    z_mu = rng.normal(size=LATENT_DIM).astype(np.float32)
+    z_std = (0.5 + rng.random(LATENT_DIM)).astype(np.float32)
+    stats = make_stats(N_COEFFS)
+    draws = sample_draws(make_signals(B, 1), np.full(B, 30.0), 'phot',
+                         StubVAE(N_COEFFS), stats,
+                         StubEstimator(mode='constant', constant=c),
+                         make_meta('phot', z_mu=z_mu, z_std=z_std),
+                         n_draws=n_draws, stored=False)
+    expected = stats['mu_data'].copy()
+    expected[:LATENT_DIM] += (c * z_std + z_mu) * stats['std_data'][:LATENT_DIM]
+    assert np.max(np.abs(draws - expected)) < 1e-5
+
+
+def test_sample_latents_inverts_the_latent_zscore():
+    """sample_latents returns VAE latent coordinates, which decode_latents
+    expects, not the flow's z-scored ones."""
+    B, n_draws, c = 3, 5, 0.7
+    rng = np.random.default_rng(3)
+    z_mu = rng.normal(size=LATENT_DIM).astype(np.float32)
+    z_std = (0.5 + rng.random(LATENT_DIM)).astype(np.float32)
+    lat = sample_latents(make_signals(B, 1), np.full(B, 30.0), 'phot',
+                         StubEstimator(mode='constant', constant=c),
+                         make_meta('phot', z_mu=z_mu, z_std=z_std),
+                         n_draws=n_draws, stored=False)
+    assert np.max(np.abs(lat - (c * z_std + z_mu))) < 1e-5
 
 def test_the_draw_axis_and_the_batch_axis_are_not_exchanged():
     """The estimator returns j + 100 d for surface j and draw d, which recovers

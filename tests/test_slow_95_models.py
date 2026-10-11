@@ -43,7 +43,7 @@ WEIGHTS_DIR = _REPO / 'weights'
 HOLDOUT_DIR = (_REPO.parent / 'Sydney' / 'data' / 'fast'
                / 'L30_N216_grouped' / 'explicit_holdout')
 
-SUFFIX = '_temp'
+SUFFIX = '_filtered'
 LATENT_DIM = 96
 T_SIGNAL = 216
 L10_PHOT, L10_ASTRO = -4.0, -3.5

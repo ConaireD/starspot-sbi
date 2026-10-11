@@ -200,6 +200,7 @@ def sample_draws(signals, betas_deg, family, vae, stats, est, meta,
     n = signals.shape[0]
     if betas_deg.shape[0] != n:
         raise ValueError(f"{n} signals against {betas_deg.shape[0]} inclinations")
+    
     ranges = _context_ranges(meta)
 
     out = []
@@ -224,6 +225,8 @@ def sample_draws(signals, betas_deg, family, vae, stats, est, meta,
                 raise ValueError(
                     f"estimator returned {tuple(draws.shape)}, expected "
                     f"({n_draws}, {b}, latent_dim)")
+
+            draws = draws * meta['z_std'] + meta['z_mu']    # undo the training z-score
             vecs = vae.decoder(draws.reshape(-1, draws.shape[-1]))
             vecs = vecs.reshape(n_draws, b, -1).permute(1, 0, 2)
 
@@ -274,6 +277,7 @@ def sample_latents(signals, betas_deg, family, est, meta,
                 raise ValueError(
                     f"estimator returned {tuple(draws.shape)}, expected "
                     f"({n_draws}, {b}, latent_dim)")
+        draws = draws * meta['z_std'] + meta['z_mu']    # undo the training z-score
         out.append(draws.permute(1, 0, 2).float().cpu().numpy())
 
     return np.concatenate(out, axis=0)

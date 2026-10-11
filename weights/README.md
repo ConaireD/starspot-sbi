@@ -5,14 +5,15 @@
 
 ## Expected filenames
 
-- `vae_n640000_seed101_temp.pt` — the frozen VAE, 96-d latent, L = 30
-- `flow_{phot,phot_ax,phot_ay,phot_axay}_temp.pt` — noise-conditioned NSF, one per family
-- `clf_{phot,phot_ax,phot_ay,phot_axay}_temp.pt` — 91-way beta classifier, one per family
+- `vae_n640000_seed101_filtered.pt` — the frozen VAE, 96-d latent, L = 30
+- `flow_{phot,phot_ax,phot_ay,phot_axay}_filtered.pt` — noise-conditioned NSF, one per family
+- `clf_{phot,phot_ax,phot_ay,phot_axay}_filtered.pt` — 91-way beta classifier, one per family
 
 ## The _temp suffix
 
 - marks these as pending verification, pre-dating the positivity filter and retrain
 - to be dropped at release; `SUFFIX` in tests/test_10_models.py is the single edit
+- all instances should be gone, and replaced with a `_filtered` suffix.
 
 ## Notes
 

@@ -85,8 +85,8 @@ LOG10_SIGMA_ASTRO = (-7.0, -2.0)
 # These are defaults for make_context and clf_context. load_flow and
 # load_classifier return the values stored in each checkpoint, and those are
 # what an inference call should use.
-GAIN_PHOT = 314.82056848788335
-GAIN_AST = 398.15769118301773
+GAIN_PHOT = 316.80097506719625   # recomputed on the filtered training set; matches the _filtered checkpoints
+GAIN_AST = 402.60242269365716
 
 # Flow architecture, identical across families apart from the channel count.
 FLOW = dict(hidden_features=128, num_transforms=20, num_bins=8)
@@ -751,30 +751,41 @@ def load_vae(ckpt_path, device='cpu', l_max=L_MAX):
 def load_flow(ckpt_path, latent_dim=96, T=None, device='cpu'):
     """
     Load a noise-conditioned flow. Returns (est, meta) with meta holding ch,
-    n_aux, T, gain_phot, gain_ast and the two log sigma ranges.
- 
+    n_aux, T, gain_phot, gain_ast, the two log sigma ranges, and z_mu and
+    z_std.
+
+    The flow models the z-scored latent (z - z_mu) / z_std, so its draws must
+    be mapped back with z * z_std + z_mu before decoding. A checkpoint without
+    z_mu and z_std raises, since decoding its raw draws would be wrong
+    without any error.
+
     The architecture is not recorded in the checkpoint and comes from the FLOW
     and EMB constants. T is recovered from the context standardisation layer,
     whose length is len(ch) * T + n_aux, and may be given explicitly instead.
     """
     ck = torch.load(ckpt_path, map_location=device, weights_only=False)
+    if 'z_mu' not in ck or 'z_std' not in ck:
+        raise KeyError(f"{ckpt_path}: flow checkpoint has no z_mu/z_std, so "
+                       "its latent z-score cannot be undone")
     ch, n_aux = list(ck['ch']), int(ck['n_aux'])
- 
+
     if T is None:
         ctx_dim = ck['net']['net._embedding_net.0._mean'].numel()
         T = (ctx_dim - n_aux) // len(ch)
- 
+
     est = build_flow(len(ch), n_aux, T, latent_dim, device=device)
     est.load_state_dict(ck['net'], strict=True)
     est.eval()
     for p in est.parameters():
         p.requires_grad_(False)
- 
+
     meta = {'ch': ch, 'n_aux': n_aux, 'T': T,
             'gain_phot': float(ck['gain_phot']), 'gain_ast': float(ck['gain_ast']),
             'log10_sigma_phot': tuple(ck['log10_sigma_phot']),
             'log10_sigma_astro': tuple(ck['log10_sigma_astro']),
-            'context_dim': len(ch) * T + n_aux}
+            'context_dim': len(ch) * T + n_aux,
+            'z_mu': torch.as_tensor(ck['z_mu'], dtype=torch.float32, device=device),
+            'z_std': torch.as_tensor(ck['z_std'], dtype=torch.float32, device=device)}
     return est, meta
  
  

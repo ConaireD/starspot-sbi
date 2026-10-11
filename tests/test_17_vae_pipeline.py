@@ -38,7 +38,7 @@ from starspot_sbi.pipeline import (
 from starspot_sbi.surfaces import generate_spotted_surface
 
 WEIGHTS = Path(__file__).resolve().parent.parent / 'weights'
-SUFFIX = '_temp'
+SUFFIX = '_filtered'
 
 L_SMALL = 6
 N_SMALL = (L_SMALL + 1) ** 2
