@@ -10,6 +10,8 @@ dependencies = [
     "tqdm>=4.65",
     "torch>=2.0",
     "sbi>=0.26,<0.27",
+    "pandas",
+    "matplotlib",
 ]
 
 [build-system]
