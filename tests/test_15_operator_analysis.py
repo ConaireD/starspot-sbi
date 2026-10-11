@@ -542,3 +542,14 @@ def test_run_analysis_refuses_an_absent_cache(tmp_path):
     with pytest.raises(FileNotFoundError, match='build_caches'):
         run_analysis(str(tmp_path / 'nothing'), str(tmp_path / 'out'),
                      [0], L6, N_OBS6, N_BETA, progress=False)
+
+def test_T_is_orthogonal_with_weight_two_off_m_zero():
+    """T^H T is diagonal, 1 on the L + 1 m = 0 entries (packed first) and 2 on
+    the rest, so real-packed norms weight m != 0 entries half as heavily as the
+    complex-coefficient norm does."""
+    L = 4
+    T = build_T(L)
+    G = T.conj().T @ T
+    n = (L + 1) ** 2
+    want = np.r_[np.ones(L + 1), 2.0 * np.ones(n - (L + 1))]
+    assert np.allclose(G, np.diag(want))
