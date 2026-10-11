@@ -22,3 +22,7 @@
 ### Added
 - `starspot_sbi.nullspace`: null-space correlation rho, null power fraction,
   summed shrinkage; `operators.family_operator`.
+
+  - `scripts/nullspace_stats.py`: per-family null-space correlation, null power
+  fraction and summed shrinkage from a holdout run, recording the numpy and
+  scipy versions used.
