@@ -46,7 +46,13 @@ from starspot_sbi.metrics import (
     wmean,
 )
 from starspot_sbi.metrics import rmse as rmse_metric
-from starspot_sbi.pipeline import render_draws, select_channels, to_model_order
+from starspot_sbi.pipeline import (
+    LOG10_SIGMA_ASTRO_MISSION,
+    LOG10_SIGMA_PHOT_MISSION,
+    render_draws,
+    select_channels,
+    to_model_order,
+)
 from starspot_sbi.render import N_PHI, N_THETA
 from starspot_sbi.surfaces import generate_spotted_surface
 
@@ -606,8 +612,8 @@ def test_main_writes_a_manifest_that_names_every_knob(holdout, tmp_path,
     assert m['draws'] == 8
     assert m['batch'] == 4
     assert m['seed'] == 3
-    assert m['log10_sigma_phot'] == -4.0
-    assert m['log10_sigma_astro'] == -3.5
+    assert m['log10_sigma_phot'] == LOG10_SIGMA_PHOT_MISSION
+    assert m['log10_sigma_astro'] == LOG10_SIGMA_ASTRO_MISSION
     assert set(m['elapsed_s']) == set(rh.FAMILIES)
 
 

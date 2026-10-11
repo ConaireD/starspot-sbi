@@ -453,6 +453,10 @@ A reader must call `drop_duplicates('surface_idx', keep='first')` before countin
 rows or aggregating over them, or the repeated surfaces will carry twice the
 weight of the rest.
 
+| photometric noise, operating point | log10 sigma_phot = -4.0, i.e. 100 ppm per epoch |
+| astrometric noise, operating point | log10 sigma_astro = -3.1, in units of the stellar radius; 1 muas per epoch at the angular radius of sigma Gem (about 1.21 mas, Roettenbacher et al. 2015) |
+| noise training range | log10 sigma in [-7, -2] for both channels |
+
 ---
 
 ## 13. Numbers that identify each convention

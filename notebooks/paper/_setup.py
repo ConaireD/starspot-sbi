@@ -57,7 +57,7 @@ from run_holdout import read_pair, load_holdout_index              # noqa: E402
 # The pinned run. These reproduce results/holdout; changing one means the
 # figures no longer match the .tex.
 LOG_SIGMA_PHOT = -4.0
-LOG_SIGMA_ASTRO = -3.5
+LOG_SIGMA_ASTRO = -3.1 # changed from -3.5 to -3.1 for sigma gem paper level
 N_DRAWS = 256
 N_HOLDOUT = 5000
 SEED = 0

@@ -49,6 +49,7 @@ from tqdm.auto import tqdm
 # self
 import starspot_sbi
 from starspot_sbi.indexing import idx_to_lm, n_coeffs, real_to_coeffs
+from starspot_sbi.pipeline import LOG10_SIGMA_ASTRO_MISSION, LOG10_SIGMA_PHOT_MISSION
 
 #############
 # Constants #
@@ -70,8 +71,8 @@ DEFAULT_PROJECTOR = 'graded'
 # is the per-channel pair from starspot_sbi.pipeline: sigma_phot = 1e-4,
 # sigma_astro = 10^-3.5.
 NOISE_LEVELS = (1e-4, 1e-3, 1e-2)
-SIGMA_PHOT_MISSION = 1e-4
-SIGMA_ASTRO_MISSION = 10.0 ** -3.5
+SIGMA_PHOT_MISSION = 10.0 ** LOG10_SIGMA_PHOT_MISSION
+SIGMA_ASTRO_MISSION = 10.0 ** LOG10_SIGMA_ASTRO_MISSION
 
 # Row labels of neff_vs_beta.csv. The uniform rows apply one per-sample level
 # to every row of the operator; the mission row whitens each channel by its own
