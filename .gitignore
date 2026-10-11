@@ -16,3 +16,5 @@ caches/*
 !caches/README.md
 docs/identifiability.md
 notebooks/paper/old/
+build/
+dist/
