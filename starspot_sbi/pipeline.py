@@ -60,7 +60,7 @@ STORED_TO_MODEL = [2, 0, 1]
 
 # Mission reference point, docs/conventions.md section 12.
 LOG10_SIGMA_PHOT_MISSION = -4.0
-LOG10_SIGMA_ASTRO_MISSION = -3.5
+LOG10_SIGMA_ASTRO_MISSION = -3.1 # change 3.5 --> 3.1 for sigma gem paper level
 
 #####################
 # Channel Selection #

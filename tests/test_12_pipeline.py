@@ -184,9 +184,9 @@ def single_mode(L, l, m, amplitude):
 ############################
 
 def test_mission_reference_point():
-    """100 ppm photometry and 1 muas per epoch at alpha Cen B."""
+    """100 ppm photometry and 1 muas per epoch at sigma gem."""
     assert LOG10_SIGMA_PHOT_MISSION == -4.0
-    assert LOG10_SIGMA_ASTRO_MISSION == -3.5
+    assert LOG10_SIGMA_ASTRO_MISSION == -3.1
 
 
 def test_stored_to_model_is_the_permutation_it_claims():

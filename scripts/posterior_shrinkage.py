@@ -56,13 +56,7 @@ from tqdm.auto import tqdm
 
 # self
 import starspot_sbi
-
-#############
-# Constants #
-#############
-
-LOG10_SIGMA_PHOT_MISSION = -4.0
-LOG10_SIGMA_ASTRO_MISSION = -3.5
+from starspot_sbi.pipeline import LOG10_SIGMA_ASTRO_MISSION, LOG10_SIGMA_PHOT_MISSION
 
 # Cache channel keys per family, matching starspot_sbi.models.FAMILIES.
 FAMILY_CHANNELS = {

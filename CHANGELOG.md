@@ -12,3 +12,6 @@
   can no longer be loaded.
 - `GAIN_PHOT`/`GAIN_AST` updated to the filtered training set's values.
 - Results in `results/holdout/` were made with the `_temp` weights and are stale.
+
+- Default astrometric noise (`LOG10_SIGMA_ASTRO_MISSION`) is now -3.1, the
+  paper's operating point (previously -3.5, the alpha Cen B mission point).
