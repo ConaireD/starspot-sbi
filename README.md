@@ -1,5 +1,7 @@
 ![tests](https://github.com/ConaireD/starspot-sbi/actions/workflows/tests.yml/badge.svg)
 
+![lint](https://github.com/ConaireD/starspot-sbi/actions/workflows/lint.yml/badge.svg)
+
 # starspot-sbi
 
 - Simulation-based inference for stellar surface mapping
