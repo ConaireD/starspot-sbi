@@ -423,7 +423,7 @@ def periodic_label(mask):
     if n <= 1:
         return lab, n
     parent = np.arange(n + 1)
-    for a, b in zip(lab[:, 0], lab[:, -1]):
+    for a, b in zip(lab[:, 0], lab[:, -1], strict=True):
         if a and b:
             ra, rb = int(a), int(b)
             while parent[ra] != ra:

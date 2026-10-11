@@ -14,6 +14,7 @@ import json
 import os
 import sys
 import time
+from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
@@ -459,7 +460,7 @@ def test_graded_trace_is_below_the_rank_and_rises_as_lambda_falls(cache6):
               f'deficit {1 - traces[-1] / rank:6.1%}')
 
     assert all(t < rank for t in traces)
-    assert all(a < b for a, b in zip(traces, traces[1:]))
+    assert all(a < b for a, b in pairwise(traces))
     assert traces[-1] > 0.99 * rank            # 1e-12 is nearly a hard cut
 
 

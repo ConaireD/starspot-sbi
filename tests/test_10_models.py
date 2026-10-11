@@ -80,7 +80,7 @@ def test_band_index_sets_partition_the_vector(l_min):
 @pytest.mark.parametrize('l_min', [0, 1])
 def test_band_index_set_sizes(l_min):
     """Degree l contributes 2l + 1 entries: one m = 0, l real, l imaginary."""
-    for l, s in zip(range(l_min, L_MAX + 1), band_index_sets(L_MAX, l_min)):
+    for l, s in zip(range(l_min, L_MAX + 1), band_index_sets(L_MAX, l_min), strict=True):
         assert len(s) == 2 * l + 1
 
 

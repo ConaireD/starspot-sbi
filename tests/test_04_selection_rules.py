@@ -66,7 +66,8 @@ RULES = {"kphot": phot_rule, "kx": x_rule, "ky": y_rule}
 @pytest.fixture(scope="module")
 def kernels():
     """Kernels at each L, computed once for the whole module."""
-    return {L: dict(zip(("kx", "ky", "kphot"), precompute_kernels_fast(L)))
+    return {L: dict(zip(("kx", "ky", "kphot"), precompute_kernels_fast(L),
+                        strict=True))
             for L in LS}
 
 

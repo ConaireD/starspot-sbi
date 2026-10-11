@@ -78,13 +78,13 @@ def test_phi_integrals_closed_form_to_m30():
     """
     worst = 0.0
     for m in range(-L, L + 1):
-        re, _ = quad(lambda p: np.sin(p) * np.cos(p) * np.cos(m * p),
+        re, _ = quad(lambda p, m=m: np.sin(p) * np.cos(p) * np.cos(m * p),
                      -np.pi / 2, np.pi / 2)
-        im, _ = quad(lambda p: np.sin(p) * np.cos(p) * np.sin(m * p),
+        im, _ = quad(lambda p, m=m: np.sin(p) * np.cos(p) * np.sin(m * p),
                      -np.pi / 2, np.pi / 2)
         worst = max(worst, abs(I_phi_x_fast(m) - (re + 1j * im)))
-        re, _ = quad(lambda p: np.cos(p) * np.cos(m * p), -np.pi / 2, np.pi / 2)
-        im, _ = quad(lambda p: np.cos(p) * np.sin(m * p), -np.pi / 2, np.pi / 2)
+        re, _ = quad(lambda p, m=m: np.cos(p) * np.cos(m * p), -np.pi / 2, np.pi / 2)
+        im, _ = quad(lambda p, m=m: np.cos(p) * np.sin(m * p), -np.pi / 2, np.pi / 2)
         worst = max(worst, abs(I_phi_y_fast(m) - (re + 1j * im)))
     print(f"max abs error over m = -30..30: {worst:.2e} (bound 1e-13)")
     assert worst < 1e-13

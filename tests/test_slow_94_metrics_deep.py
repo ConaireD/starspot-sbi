@@ -77,7 +77,7 @@ def test_ssim_degrades_with_noise_averaged_50_surfaces(prior_surfaces):
                 for im in imgs]
         means.append(np.mean(vals))
     print("mean ssim at sigma " + ", ".join(
-        f"{s}: {m:.4f}" for s, m in zip(levels, means)))
+        f"{s}: {m:.4f}" for s, m in zip(levels, means, strict=True)))
     assert means[0] > means[1] > means[2]
 
 
@@ -158,7 +158,7 @@ def test_pr_auc_noise_monotonicity_averaged_40_surfaces(prior_surfaces):
         means.append(np.mean(vals[has_spots]))
     print(f"{int(has_spots.sum())} of {len(imgs)} surfaces have visible "
           "spots (identical at every level); mean pr_auc at sigma "
-          + ", ".join(f"{s}: {m:.4f}" for s, m in zip(levels, means)))
+          + ", ".join(f"{s}: {m:.4f}" for s, m in zip(levels, means, strict=True)))
     assert means[0] > means[1] > means[2] > means[3]
 
 

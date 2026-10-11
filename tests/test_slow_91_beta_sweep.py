@@ -9,6 +9,8 @@ L = 30 (91 betas would exceed the per-test budget); L = 30 is spot-checked
 at four betas including both endpoints.
 """
 
+from itertools import pairwise
+
 import numpy as np
 import pytest
 
@@ -142,8 +144,8 @@ def test_pole_on_flux_constancy_approach_L30(kernels_L30):
         A = build_design_matrix(30, beta, 2 * np.pi, t_obs, kernels_L30['phot'])
         mu = forward_model(s, A)
         ratios.append(np.std(mu) / abs(np.mean(mu)))
-    for beta, r in zip(betas, ratios):
+    for beta, r in zip(betas, ratios, strict=True):
         print(f"beta = {np.degrees(beta):5.1f} deg: std/mean = {r:.3e}")
     assert ratios[-1] < 1e-6
-    for a, b in zip(ratios, ratios[1:]):
+    for a, b in pairwise(ratios):
         assert b < a * 1.05
