@@ -7,6 +7,8 @@
   decoding; `load_flow` reads `z_mu`/`z_std` and rejects checkpoints without
   them (#4).
 
+- null_basis falls back to LAPACK’s gesvd when the default SVD fails to converge (#14)”
+
 ### Changed
 - The package's weights are now the `_filtered` set; `_temp` flow checkpoints
   can no longer be loaded.
