@@ -118,3 +118,18 @@ def test_family_operator_stacks_the_family_channels():
     assert np.allclose(G, np.vstack([A[0].real, A[2].real]))
     with pytest.raises(ValueError):
         family_operator(A, np.eye(9), 'phot_az')
+
+
+def test_null_basis_falls_back_when_the_default_svd_fails(monkeypatch):
+    """gesdd can fail to converge on particular matrices depending on the
+    LAPACK build; null_basis must then use gesvd and give the same subspace."""
+    G = wide_operator()
+    Vn_ref, rank_ref, _ = null_basis(G)
+
+    def fail(*args, **kwargs):
+        raise np.linalg.LinAlgError('SVD did not converge')
+
+    monkeypatch.setattr(np.linalg, 'svd', fail)
+    Vn, rank, _ = null_basis(G)
+    assert rank == rank_ref
+    assert np.allclose(Vn.T @ Vn, Vn_ref.T @ Vn_ref, atol=1e-10)

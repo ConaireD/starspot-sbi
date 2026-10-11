@@ -19,16 +19,28 @@ The definitions are fixed here as the paper's numbers were computed:
 """
 
 import numpy as np
+import scipy.linalg
 
 from starspot_sbi.operators import rank_by_gap
 
+
+def _full_svd(G):
+    """
+    Full SVD. LAPACK's divide-and-conquer driver (gesdd, numpy's default) can
+    fail to converge on particular matrices, depending on the build; the slower
+    QR-based driver (gesvd) is used when it does.
+    """
+    try:
+        return np.linalg.svd(G, full_matrices=True)
+    except np.linalg.LinAlgError:
+        return scipy.linalg.svd(G, full_matrices=True, lapack_driver='gesvd')
 
 def null_basis(G):
     """
     Orthonormal rows spanning the null space of G. Returns (Vn, rank,
     gap_decades), with Vn of shape (n - rank, n).
     """
-    _, sv, Vt = np.linalg.svd(G, full_matrices=True)
+    _, sv, Vt = _full_svd(G)
     rank, _, _, gap = rank_by_gap(sv)
     return Vt[rank:], rank, gap
 
