@@ -29,5 +29,9 @@ filterwarnings = [
 addopts = "-m 'not slow'"
 markers = ["slow: deeper checks, run with -m slow"]
 
+[tool.ruff]
+extend-exclude = ["notebooks"]
+
+
 [tool.ruff.lint]
 select = ["E9", "F", "I", "B"]
