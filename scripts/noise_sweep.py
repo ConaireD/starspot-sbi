@@ -15,8 +15,13 @@ Rows already present in the output are skipped, so an interrupted sweep
 resumes where it stopped.
 
 Usage:
-    python scripts/noise_sweep.py --pairs-from results/holdout --n 400
     python scripts/noise_sweep.py --family phot_axay --draws 128
+
+The paper's run:
+
+    python scripts/noise_sweep.py --family all \
+        --holdout <path>/explicit_holdout --pairs <path>/pairs5000.csv \
+        --n 400 --draws 128
 """
 
 ###########
@@ -49,7 +54,7 @@ from starspot_sbi.render import render
 
 WEIGHTS_SUFFIX = '_filtered'
 LATENT_DIM = 96
-SNR_GRID = (-6.0, -5.0, -4.5, -4.0, -3.5, -3.0, -2.5, -2.0)
+SNR_GRID = (-6.0, -5.0, -4.5, -4.0, -3.6, -3.5, -3.1, -3.0, -2.5, -2.0)
 CHUNK = 25
 
 ###############

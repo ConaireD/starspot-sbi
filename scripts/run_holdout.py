@@ -1,18 +1,22 @@
 """
-Regenerate the per-surface metrics of the paper's results section, from the
+Regenerate the per-surface metrics of the paper's results section from the
 released checkpoints and the stored holdout signals.
 
-Given --pairs, the same (surface, inclination) pairs the notebook used are
-scored, which makes the comparison paired: same surfaces, same inclinations,
-different code.
+Given --pairs, the listed (surface, inclination) pairs are scored, so two runs
+over the same pairs file are paired: same surfaces, same inclinations.
 
 Usage:
     python scripts/run_holdout.py --family phot_axay --n 200
-    python scripts/run_holdout.py --family phot_axay --pairs figdata/full_phot_axay_lp-4.0_la-3.5.csv
     python scripts/run_holdout.py --family all --n 5000 --draws 256 --save-draws
 
+The paper's run, once per family (phot, phot_ax, phot_ay, phot_axay), at the
+default operating point:
+    python scripts/run_holdout.py --family phot_axay \
+        --holdout <path>/explicit_holdout --pairs <path>/pairs5000.csv \
+        --draws 256 --save-draws --out results/holdout
+
 With --save-draws the coefficient draws are kept, 1 MB per surface at 256 draws,
-so 20 GB for four families at 5000 surfaces. 
+so 20 GB for four families at 5000 surfaces.
 
 Reproducibility: the noise draw and the flow sampling are both seeded on the
 chunk's first row index, so a rerun reproduces the same numbers and a resumed
