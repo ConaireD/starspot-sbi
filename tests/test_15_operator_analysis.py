@@ -93,10 +93,9 @@ def svd6():
 
 def test_gap_rank_reproduces_closed_forms():
     """
-    Gap rank against the corrected closed forms at L = 4 to 8, per channel, at
+    Gap rank against the closed forms at L = 4 to 8, per channel, at
     beta = 0, three interior inclinations and pole-on. L = 4 exercises the
-    Lo = 3 special case (interior astro 11, not 4L - 3 = 13 and not Taaki's
-    4L - 2 = 14). Nothing here is tuned: a disagreement is a finding.
+    Lo = 3 special case (interior astro 11, not 4L - 3 = 13). Nothing here is tuned: a disagreement is a finding.
     """
     for l_max in (4, 5, 6, 7, 8):
         n_obs = 4 * l_max + 8
@@ -117,7 +116,7 @@ def test_l3_special_case():
     """
     At L = 3 the combined operator is astro + phot - 2 at beta = 0 and
     interior (a cross-channel dependency at m = +-2), and interior astro is
-    4Lo + 1 - 2 = 11, one above Taaki's 4L - 2 = 10 (RANK_RESOLUTION.md).
+    4Lo + 1 - 2 = 11.
     """
     T = build_T(3)
     for beta_deg, want_astro, want_comb in [(0, 11, 14), (33, 11, 14),

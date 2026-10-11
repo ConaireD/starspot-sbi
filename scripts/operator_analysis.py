@@ -91,7 +91,7 @@ CHANNELS = ('x', 'y', 'astro', 'phot', 'combined')
 JUNK_FLOOR = 1e-20
 
 # A gap this wide in decades is treated as trustworthy. Measured on the
-# production cache at L = 30 (RANK_RESOLUTION.md): the gap is 5.0 decades at
+# production cache at L = 30: the gap is 5.0 decades at
 # beta = 45 deg where the rank is right, and 3.2 decades at beta = 60 deg where
 # the numerically non-zero x m = 0 row is miscounted. 4 sits between.
 GAP_TRUST_DECADES = 4.0
@@ -215,14 +215,13 @@ def n_eff_mission(Gx, Gy, Gp, sigma_phot=SIGMA_PHOT_MISSION,
 
 def closed_form_rank(l_max, channel, beta_deg):
     """
-    Corrected closed-form rank (RANK_RESOLUTION.md, verified against gap-SVD at
-    L = 3-8 and 30). Lo and Le are the largest odd and even degrees <= L.
-
+    Closed-form rank, verified against the gap SVD at L = 3-8 and 30. Lo and
+    Le are the largest odd and even degrees <= L.
         beta = 0     x Lo+3   y Lo+2   astro 2Lo+5   phot Le+3   combined sum
         interior     x 2Lo    y 2Lo+1  astro 4Lo-3   phot 2Le+1  combined sum
         beta = 90    x 2      y 2      astro 2       phot 1      combined 3
 
-    Special cases inside Taaki's stated domain L > 2: at Lo = 3 (L = 3, 4) the
+    Special cases for L > 2: at Lo = 3 (L = 3, 4) the
     (2, +-2) and (2, +-1) kernel entries leave only two proportional x/y row
     pairs interior, so astro is 4Lo+1-2; and at L = 3 the combined operator
     loses a further 2 to a cross-channel dependency at m = +-2, at beta = 0 and
