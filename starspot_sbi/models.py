@@ -102,7 +102,6 @@ def input_dim(l_min, l_max=L_MAX):
     n = (l_max + 1) ** 2
     return n if l_min == 0 else n - 1
 
-# Reachable only through tokenizer='order'. No released checkpoint uses it, but will exist as an option
 def band_index_sets(l_max, l_min):
     """
     Indices of the real-packed vector grouped by degree, one array per degree.
@@ -124,28 +123,7 @@ def band_index_sets(l_max, l_min):
         sets.append(np.array(idx, dtype=np.int64))
     return sets
 
-def band_index_sets(l_max, l_min):
-    """
-    Indices of the real-packed vector grouped by degree, one array per degree.
-    Each holds the m = 0 entry, then the real parts for m = 1..l, then the
-    imaginary parts.
-    """
-    n_m0 = l_max - l_min + 1
-    re_off = n_m0
-    im_off = n_m0 + sum(range(1, l_max + 1))
- 
-    def repos(l, m):
-        return sum(range(1, l)) + (m - 1)
- 
-    sets = []
-    for l in range(l_min, l_max + 1):
-        idx = [l - l_min]
-        idx += [re_off + repos(l, m) for m in range(1, l + 1)]
-        idx += [im_off + repos(l, m) for m in range(1, l + 1)]
-        sets.append(np.array(idx, dtype=np.int64))
-    return sets
-
-
+   # Used only when tokenizer='order'. No released checkpoint uses it.
 def order_index_sets(l_max, l_min):
     """As band_index_sets, grouped by order rather than degree."""
     n_m0 = l_max - l_min + 1
