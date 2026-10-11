@@ -86,6 +86,20 @@ def channel_operators(A_beta, T):
     return {'x': Gx, 'y': Gy, 'astro': np.vstack([Gx, Gy]),
             'phot': Gp, 'combined': np.vstack([Gx, Gy, Gp])}
 
+# Rows of each family's operator, in channel_operators' keys. The null-space
+# statistics were computed with this order; the order does not change the null
+# space.
+FAMILY_ROWS = {'phot': ('phot',), 'phot_ax': ('x', 'phot'),
+               'phot_ay': ('y', 'phot'), 'phot_axay': ('x', 'y', 'phot')}
+
+
+def family_operator(A_beta, T, family):
+    """Stacked real operator of a signal family from one cache slice."""
+    if family not in FAMILY_ROWS:
+        raise ValueError(f"unknown family {family!r}; expected one of {sorted(FAMILY_ROWS)}")
+    ops = channel_operators(A_beta, T)
+    return np.vstack([ops[c] for c in FAMILY_ROWS[family]])
+
 ###################
 # Rank            #
 ###################
