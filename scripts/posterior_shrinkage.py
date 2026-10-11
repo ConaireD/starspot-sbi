@@ -51,11 +51,16 @@ from datetime import datetime
 # standard
 import numpy as np
 from build_caches import DEFAULT_CACHE_DIR, L_MAX, N_BETA, N_OBS, load_design
-from operator_analysis import GAP_TRUST_DECADES, build_T, channel_operators, rank_by_gap
 from tqdm.auto import tqdm
 
 # self
 import starspot_sbi
+from starspot_sbi.operators import (
+    GAP_TRUST_DECADES,
+    build_T,
+    channel_operators,
+    rank_by_gap,
+)
 from starspot_sbi.pipeline import LOG10_SIGMA_ASTRO_MISSION, LOG10_SIGMA_PHOT_MISSION
 
 # Cache channel keys per family, matching starspot_sbi.models.FAMILIES.

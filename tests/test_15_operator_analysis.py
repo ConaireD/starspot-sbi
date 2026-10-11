@@ -24,27 +24,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'scripts'))
 
 from build_caches import build_design
 from operator_analysis import (
-    CHANNELS,
-    GAP_TRUST_DECADES,
-    LAM,
     MISSION_LABEL,
     NOISE_LEVELS,
     PROJECTORS,
     UNIFORM_LABEL,
-    apply_projector,
-    build_T,
-    channel_operators,
     closed_form_rank,
-    degree_map,
-    graded_svd,
-    hard_weights,
     n_eff,
     n_eff_mission,
     observable_power_fraction,
     per_degree_fraction,
     projector_trace,
-    rank_by_gap,
-    rank_by_tol,
     run_analysis,
     shape_correlation,
 )
@@ -52,6 +41,19 @@ from operator_analysis import (
 from starspot_sbi.design_matrix import build_B, build_W
 from starspot_sbi.indexing import n_coeffs
 from starspot_sbi.kernels import precompute_kernels_fast
+from starspot_sbi.operators import (
+    CHANNELS,
+    GAP_TRUST_DECADES,
+    LAM,
+    apply_projector,
+    build_T,
+    channel_operators,
+    degree_map,
+    graded_svd,
+    hard_weights,
+    rank_by_gap,
+    rank_by_tol,
+)
 
 L6 = 6
 N_OBS6 = 32

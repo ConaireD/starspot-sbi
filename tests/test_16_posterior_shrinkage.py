@@ -27,7 +27,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'scripts'))
 
 from build_caches import build_design, load_design
-from operator_analysis import build_T, channel_operators, n_eff, rank_by_gap
+from operator_analysis import n_eff
 from posterior_shrinkage import (
     CALIBRATION_CAVEAT,
     FAMILY_CHANNELS,
@@ -44,6 +44,7 @@ from posterior_shrinkage import (
 )
 
 from starspot_sbi.indexing import n_coeffs
+from starspot_sbi.operators import build_T, channel_operators, rank_by_gap
 
 L6 = 6
 N_OBS6 = 32
