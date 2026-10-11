@@ -35,19 +35,22 @@ Usage:
 # Imports #
 ###########
 
-import os
-import json
 import argparse
+import json
+import os
 
 import numpy as np
 
-from starspot_sbi.indexing import n_coeffs, coeffs_to_real, real_to_coeffs
-from starspot_sbi.render import N_THETA, N_PHI, render, render_coeffs
-from starspot_sbi.metrics import (SPOT_THRESHOLD, scalar_metrics, spot_mask,
-                                  visibility_mask, cap_boundary_lat,
-                                  detection_operating_points)
+from starspot_sbi.metrics import (
+    SPOT_THRESHOLD,
+    cap_boundary_lat,
+    detection_operating_points,
+    scalar_metrics,
+    spot_mask,
+    visibility_mask,
+)
+from starspot_sbi.render import N_PHI, N_THETA, render, render_coeffs
 from starspot_sbi.surfaces import generate_spotted_surface
-
 
 #############
 # Loading   #

@@ -41,24 +41,21 @@ Usage:
 ###########
 
 # python
-import os
+import argparse
 import csv
 import json
+import os
 import time
-import argparse
 from datetime import datetime
 
 # standard
 import numpy as np
+from build_caches import DEFAULT_CACHE_DIR, L_MAX, N_BETA, N_OBS, load_design
+from operator_analysis import GAP_TRUST_DECADES, build_T, channel_operators, rank_by_gap
 from tqdm.auto import tqdm
 
 # self
 import starspot_sbi
-from starspot_sbi.indexing import n_coeffs
-from build_caches import load_design, DEFAULT_CACHE_DIR, L_MAX, N_OBS, N_BETA
-from operator_analysis import (build_T, channel_operators, rank_by_gap,
-                               GAP_TRUST_DECADES)
-
 
 #############
 # Constants #
@@ -137,7 +134,6 @@ def exact_direction_variance(G, prior_var, Vt, sigma_n=1.0):
     far the per-direction closed form sits from the truth when the prior is
     not diagonal in the v_i basis.
     """
-    n = G.shape[1]
     H = G.T @ G / sigma_n ** 2 + np.diag(1.0 / np.asarray(prior_var, dtype=float))
     Sigma = np.linalg.inv(H)
     return np.einsum('ij,jk,ik->i', Vt, Sigma, Vt)
@@ -308,7 +304,7 @@ def analyse(fam_dir, family, prior_var, cache_dir, out_dir,
     weights /= weights.sum()
 
     def wmean(key):
-        return float(sum(w * pb[b][key] for w, b in zip(weights, pb)))
+        return float(sum(w * pb[b][key] for w, b in zip(weights, pb, strict=True)))
 
     summary['overall'] = {k: wmean(k) for k in
                           ('neff_analytic_prior_weighted', 'neff_sbi_mean',
@@ -387,7 +383,7 @@ def main():
             args.l_max, args.n_obs, args.n_beta, args.n)
     except FileNotFoundError as e:
         print(e)
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     print_summary(summary)
     print(f'\nwritten to {os.path.abspath(out_dir)}')
 

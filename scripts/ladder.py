@@ -134,8 +134,8 @@ def load_rung(tag, device='cpu'):
     """One rung's flow, from its bare state dict."""
     if LEGACY not in sys.path:
         sys.path.insert(0, LEGACY)
-    from sbi.neural_nets import posterior_nn
     import reconstruction_utils as ru
+    from sbi.neural_nets import posterior_nn
 
     net = ru.AttnSignalEmbeddingConditional(T=T, n_channels=3, dropout=0.0,
                                             beta_dim=8, **EMB)

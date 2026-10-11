@@ -33,23 +33,22 @@ Usage:
 ###########
 
 # python
-import os
+import argparse
 import csv
 import json
+import os
 import time
-import argparse
 from datetime import datetime
 
 # standard
 import numpy as np
+from build_caches import DEFAULT_CACHE_DIR, L_MAX, N_BETA, N_OBS, load_design
 from scipy.stats import spearmanr
 from tqdm.auto import tqdm
 
 # self
 import starspot_sbi
-from starspot_sbi.indexing import n_coeffs, real_to_coeffs, idx_to_lm
-from build_caches import load_design, DEFAULT_CACHE_DIR, L_MAX, N_OBS, N_BETA
-
+from starspot_sbi.indexing import idx_to_lm, n_coeffs, real_to_coeffs
 
 #############
 # Constants #

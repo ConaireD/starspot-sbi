@@ -24,32 +24,45 @@ run agrees with an uninterrupted one.
 ###########
 
 # python
-import os
-import csv
-import json
-import time
 import argparse
+import json
+import os
+import time
 
 # standard
 import numpy as np
 import pandas as pd
-from tqdm.auto import tqdm
 
 # machine learning
 import torch
+from tqdm.auto import tqdm
 
 # self
 from starspot_sbi.indexing import coeffs_to_real
-from starspot_sbi.render import render, render_coeffs
-from starspot_sbi.metrics import (ssim_aa_vis, ssim_aa_wmean, ssim_aa_full,
-                                  rmse, mae, crps, pr_auc, err_unc_corr,
-                                  spot_mask, weights, wmean, SPOT_THRESHOLD)
-from starspot_sbi.models import FAMILIES, load_vae, load_flow
-from starspot_sbi.pipeline import (sample_draws, posterior_mean, render_draws,
-                                   power_spectrum,
-                                   LOG10_SIGMA_PHOT_MISSION,
-                                   LOG10_SIGMA_ASTRO_MISSION)
-
+from starspot_sbi.metrics import (
+    SPOT_THRESHOLD,
+    crps,
+    err_unc_corr,
+    mae,
+    pr_auc,
+    rmse,
+    spot_mask,
+    ssim_aa_full,
+    ssim_aa_vis,
+    ssim_aa_wmean,
+    weights,
+    wmean,
+)
+from starspot_sbi.models import FAMILIES, load_flow, load_vae
+from starspot_sbi.pipeline import (
+    LOG10_SIGMA_ASTRO_MISSION,
+    LOG10_SIGMA_PHOT_MISSION,
+    posterior_mean,
+    power_spectrum,
+    render_draws,
+    sample_draws,
+)
+from starspot_sbi.render import render
 
 #############
 # Constants #
@@ -96,7 +109,7 @@ def load_holdout_index(holdout_dir, pairs_csv=None, n=None, seed=0):
     idx.sort()
     n_inc = int(meta.iloc[0]['n_inc'])
     slots = rng.integers(0, n_inc, size=idx.size)
-    return list(zip(idx.tolist(), slots.tolist())), meta
+    return list(zip(idx.tolist(), slots.tolist(), strict=True)), meta
 
 
 def _column(meta, *candidates):
@@ -222,7 +235,7 @@ def run_family(family, pairs, meta, holdout_dir, weights_dir, out_dir, args):
         recons = render_draws(posterior_mean(draws), device=args.device)
 
         rows, spectra = [], []
-        for k, ((surface_idx, slot), truth) in enumerate(zip(ids, truths)):
+        for k, ((surface_idx, slot), truth) in enumerate(zip(ids, truths, strict=True)):
             # rendered draws for this surface only: 29.5 MB at 256 draws, so
             # they are computed one surface at a time and discarded
             imgs = render_draws(draws[k], device=args.device)

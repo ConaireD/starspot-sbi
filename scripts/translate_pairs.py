@@ -42,7 +42,7 @@ def surface_lookup(grouped):
     meta = pd.read_csv(os.path.join(grouped, 'metadata.csv'))
     meta = meta.drop_duplicates('surface_idx', keep='first')
     keys, dupes = {}, 0
-    for sidx, s in zip(meta['surface_idx'].to_numpy(), meta['betas_deg']):
+    for sidx, s in zip(meta['surface_idx'].to_numpy(), meta['betas_deg'], strict=True):
         t = tuple(int(round(float(v)))
                   for v in str(s).replace(',', ';').split(';'))
         if t in keys:

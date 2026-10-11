@@ -24,27 +24,24 @@ Usage:
 ###########
 
 # python
-import os
 import argparse
+import os
 
 # standard
 import numpy as np
 import pandas as pd
-from tqdm.auto import tqdm
 
 # machine learning
 import torch
+from run_holdout import load_holdout_index, read_pair
+from tqdm.auto import tqdm
 
 # self
 from starspot_sbi.indexing import coeffs_to_real
+from starspot_sbi.metrics import crps, pr_auc, ssim_aa_vis
+from starspot_sbi.models import FAMILIES, load_flow, load_vae
+from starspot_sbi.pipeline import LOG10_SIGMA_PHOT_MISSION, render_draws, sample_draws
 from starspot_sbi.render import render
-from starspot_sbi.metrics import ssim_aa_vis, pr_auc, crps
-from starspot_sbi.models import FAMILIES, load_vae, load_flow
-from starspot_sbi.pipeline import (sample_draws, render_draws,
-                                   LOG10_SIGMA_PHOT_MISSION)
-
-from run_holdout import load_holdout_index, read_pair
-
 
 #############
 # Constants #
@@ -100,7 +97,7 @@ def main():
     done = set()
     if os.path.exists(out_csv):
         d = pd.read_csv(out_csv)
-        done = set(zip(d['family'], d['log_sigma_astro'].round(2), d['idx']))
+        done = set(zip(d['family'], d['log_sigma_astro'].round(2), d['idx'], strict=True))
         print(f'{len(done)} rows already present; resuming')
 
     vae, _, stats = load_vae(os.path.join(

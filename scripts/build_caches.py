@@ -32,10 +32,10 @@ Usage:
 ###########
 
 # python
-import os
-import json
-import hashlib
 import argparse
+import hashlib
+import json
+import os
 from datetime import datetime
 
 # standard
@@ -44,10 +44,9 @@ from tqdm.auto import tqdm
 
 # self
 import starspot_sbi
+from starspot_sbi.design_matrix import build_B, build_W
 from starspot_sbi.indexing import n_coeffs
-from starspot_sbi.kernels import precompute_kernels_fast, _GL_N
-from starspot_sbi.design_matrix import build_W, build_B
-
+from starspot_sbi.kernels import _GL_N, precompute_kernels_fast
 
 #############
 # Constants #
