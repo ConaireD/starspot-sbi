@@ -3,11 +3,12 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .ipynb_checkpoints/
-data/
+/data/
 weights/*.pt
 !weights/README.md
 *.npy
 *.npz
+!starspot_sbi/data/*.npz
 !tests/fixtures/*.npy
 .venv/
 results/*
