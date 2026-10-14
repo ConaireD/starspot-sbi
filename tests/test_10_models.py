@@ -54,7 +54,7 @@ from starspot_sbi.models import (
 )
 
 WEIGHTS = Path(__file__).resolve().parent.parent / 'weights'
-SUFFIX = '_filtered'                 
+SUFFIX = '_filtered'
 T_SIGNAL = 216
 LATENT_DIM = 96
 
@@ -317,6 +317,11 @@ def test_classifier_returns_91_logits():
     x = torch.randn(4, 2 * T_SIGNAL + 2)
     assert clf(x).shape == (4, N_BETA_CLASSES) == (4, 91)
 
+def test_clf_predict_requires_a_temperature():
+    """No default: omitting the fitted temperature would give an uncalibrated
+    posterior without any error."""
+    with pytest.raises(TypeError):
+        clf_predict(lambda x: torch.zeros(1, 91), torch.zeros(1, 4))
 
 def test_clf_predict_normalises_and_temperature_softens():
     """A temperature above one flattens the posterior."""
