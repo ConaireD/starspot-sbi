@@ -33,47 +33,34 @@ from sbi.inference.posteriors import DirectPosterior
 from sbi.neural_nets import posterior_nn
 from torch import nn
 
+# package
+from starspot_sbi.config import (
+    AX,
+    AY,
+    BETA_MAX,
+    BETA_MIN,
+    L_MAX,
+    LATENT_DIM,
+    LOG10_SIGMA_ASTRO_RANGE,
+    LOG10_SIGMA_PHOT_RANGE,
+    N_BETA,
+    PHOT,
+)
+from starspot_sbi.config import FAMILIES as FAMILIES
+from starspot_sbi.config import N_COEFFS as N_COEFFS
+
 #####################
 # Constants + notes #
 #####################
 
-# Truncation degree of the surface expansion. The released checkpoints were
-# trained at L_MAX = 30, so the VAE consumes 961 coefficients. Changing it
-# means retraining the VAE, and with it the flows and classifiers, which take
-# the VAE's latent as their target. The dataset is regenerated from
-# scripts/generate_dataset.py at the new degree first.
+CH_PHOT, CH_AX, CH_AY = PHOT, AX, AY
+N_BETA_CLASSES = N_BETA
 
-L_MAX = 30
-N_COEFFS = (L_MAX + 1) ** 2
-
-# Channel indices. The stored .npy files hold (astro_x, astro_y, phot), so the
-# permutation [2, 0, 1] is applied when a signal is read.
-# Adding a channel means a new kernel in kernels.py, a new block in the design
-# matrix, a regenerated dataset, and retrained flows and classifiers.
-
-CH_PHOT, CH_AX, CH_AY = 0, 1, 2
-FAMILIES = {
-    'phot':      [CH_PHOT],
-    'phot_ax':   [CH_PHOT, CH_AX],
-    'phot_ay':   [CH_PHOT, CH_AY],
-    'phot_axay': [CH_PHOT, CH_AX, CH_AY],
-}
-
-# Inclination domain and its discretisation. beta runs over the integer degrees
-# 0 to 90 inclusive, giving 91 classes in the classifer. The flow conditions on
-# beta as a continuous normalised scalar and is unaffected by the class count.
-# A finer grid means retraining the classifiers and regenerating the
-# design-matrix cache, which holds one matrix per integer degree.
-
-BETA_MIN, BETA_MAX = 0.0, 90.0
-N_BETA_CLASSES = 91
-
-# Training ranges for the noise conditioning.
-# These normalise the auxiliary entries, so an inference call conditioning on
-# sigma_phot = 1e-4 passes _u(-4.0, -7.0, -2.0) = +0.2 rather than -4.0.
-LOG10_SIGMA_PHOT = (-7.0, -2.0)
-LOG10_SIGMA_ASTRO = (-7.0, -2.0)
-
+# Training ranges for the noise conditioning. These normalise the auxiliary
+# entries, so an inference call conditioning on sigma_phot = 1e-4 passes
+# _u(-4.0, -7.0, -2.0) = +0.2 rather than -4.0.
+LOG10_SIGMA_PHOT = LOG10_SIGMA_PHOT_RANGE
+LOG10_SIGMA_ASTRO = LOG10_SIGMA_ASTRO_RANGE
 
 # Signal gains, from nsf_noisy/gains.json: the reciprocals of the median signal
 # RMS over 20,000 sampled surfaces. The photometric signal has RMS about 0.0032
@@ -179,7 +166,7 @@ class ArchConfig:
     d_model: int = 64
     n_heads: int = 4
     layers_per_stage: int = 2
-    latent_dim: int = 96
+    latent_dim: int = LATENT_DIM
     output_dim: int = 128
     head_hidden_dims: list[int] | None = None
     attn_dropout: float = 0.1
@@ -748,7 +735,7 @@ def load_vae(ckpt_path, device='cpu', l_max=L_MAX):
     return model, cfg, stats
 
 
-def load_flow(ckpt_path, latent_dim=96, T=None, device='cpu'):
+def load_flow(ckpt_path, latent_dim=LATENT_DIM, T=None, device='cpu'):
     """
     Load a noise-conditioned flow. Returns (est, meta) with meta holding ch,
     n_aux, T, gain_phot, gain_ast, the two log sigma ranges, and z_mu and

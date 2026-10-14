@@ -6,6 +6,13 @@ Repository for constants used in the StarSpot-SBI package.
 # Harmonic Basis #
 ##################
 
+# Truncation degree of the surface expansion. The released checkpoints were
+# trained at L_MAX = 30, so the VAE consumes 961 coefficients. Changing it
+# means retraining the VAE, and with it the flows and classifiers, which take
+# the VAE's latent as their target. The dataset is regenerated from
+# scripts/generate_dataset.py at the new degree first.
+
+
 L_MAX = 30                  # Maximum degree of spherical harmonics
 N_COEFFS = (L_MAX + 1) ** 2 # = 961
 
@@ -15,6 +22,11 @@ N_COEFFS = (L_MAX + 1) ** 2 # = 961
 
 T_OBS = 216                 # Epochs per rotation
 N_INC = 20                  # inclinations per training surface
+
+# Channel indices. The stored .npy files hold (astro_x, astro_y, phot), so the
+# permutation [2, 0, 1] is applied when a signal is read.
+# Adding a channel means a new kernel in kernels.py, a new block in the design
+# matrix, a regenerated dataset, and retrained flows and classifiers.
 
 # Channel indices in moder order. Stored .npy files hold (ax, ay, phot)
 PHOT, AX, AY = 0, 1, 2
