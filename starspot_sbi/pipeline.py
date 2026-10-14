@@ -38,11 +38,16 @@ import numpy as np
 import torch
 
 # self
+from starspot_sbi.config import (
+    FAMILIES,
+    LOG10_SIGMA_ASTRO_RANGE,
+    LOG10_SIGMA_ASTRO_REF,
+    LOG10_SIGMA_PHOT_RANGE,
+    LOG10_SIGMA_PHOT_REF,
+    N_DRAWS,
+)
 from starspot_sbi.indexing import coeffs_to_real, lm_indices, real_to_coeffs
 from starspot_sbi.models import (
-    FAMILIES,
-    LOG10_SIGMA_ASTRO,
-    LOG10_SIGMA_PHOT,
     beta_norm_from_deg,
     clf_context,
     clf_predict,
@@ -58,9 +63,9 @@ from starspot_sbi.render import N_PHI, N_THETA, build_Ylm_matrix
 # (phot, astro_x, astro_y). This is the one place the permutation is applied.
 STORED_TO_MODEL = [2, 0, 1]
 
-# Mission reference point, docs/conventions.md section 12.
-LOG10_SIGMA_PHOT_MISSION = -4.0
-LOG10_SIGMA_ASTRO_MISSION = -3.1 # change 3.5 --> 3.1 for sigma gem paper level
+# paper reference point, docs/conventions.md section 12.
+LOG10_SIGMA_PHOT_MISSION = LOG10_SIGMA_PHOT_REF
+LOG10_SIGMA_ASTRO_MISSION = LOG10_SIGMA_ASTRO_REF
 
 #####################
 # Channel Selection #
@@ -99,9 +104,9 @@ def _context_ranges(meta):
     checkpoint where it records them.
     """
     return {'log10_sigma_phot': tuple(meta.get('log10_sigma_phot',
-                                               LOG10_SIGMA_PHOT)),
+                                               LOG10_SIGMA_PHOT_RANGE)),
             'log10_sigma_astro': tuple(meta.get('log10_sigma_astro',
-                                                LOG10_SIGMA_ASTRO))}
+                                                LOG10_SIGMA_ASTRO_RANGE))}
 
 
 def _reinstate_dc(vecs, stats):
@@ -180,7 +185,7 @@ def power_spectrum(coeffs_real, L=None):
 def sample_draws(signals, betas_deg, family, vae, stats, est, meta,
                  log10_sigma_phot=LOG10_SIGMA_PHOT_MISSION,
                  log10_sigma_astro=LOG10_SIGMA_ASTRO_MISSION,
-                 n_draws=256, seed=0, batch_size=64, device='cpu',
+                 n_draws=N_DRAWS, seed=0, batch_size=64, device='cpu',
                  stored=True):
     """
     Posterior coefficient draws, shape (B, n_draws, (L+1)^2), real-packed and
@@ -238,7 +243,7 @@ def sample_draws(signals, betas_deg, family, vae, stats, est, meta,
 def sample_latents(signals, betas_deg, family, est, meta,
                    log10_sigma_phot=LOG10_SIGMA_PHOT_MISSION,
                    log10_sigma_astro=LOG10_SIGMA_ASTRO_MISSION,
-                   n_draws=256, seed=0, batch_size=64, device='cpu',
+                   n_draws=N_DRAWS, seed=0, batch_size=64, device='cpu',
                    stored=True):
     """
     Posterior latent draws, shape (B, n_draws, latent_dim), float32.
