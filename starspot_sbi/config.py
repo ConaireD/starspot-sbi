@@ -7,7 +7,7 @@ Repository for constants used in the StarSpot-SBI package.
 ##################
 
 L_MAX = 30                  # Maximum degree of spherical harmonics
-N_COEFFs = (L_MAX + 1) ** 2 # = 961
+N_COEFFS = (L_MAX + 1) ** 2 # = 961
 
 ################
 # Observations #
